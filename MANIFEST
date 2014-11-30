@@ -1,0 +1,13 @@
+MANIFEST
+Changes
+META.yml
+LICENSE
+README
+Build.PL
+Makefile.PL
+t/test.t
+t/lib.pm
+t/full.rjson
+t/parse-chars.rjson
+lib/JSON/Relaxed.pm
+lib/JSON/Relaxed.pod
