@@ -1,9 +1,20 @@
 #!/usr/bin/perl -w
 use strict;
 use JSON::Relaxed ':all';
-require './lib.pm';
+
+# go to test directory
+BEGIN {
+	use File::Spec;
+	use File::Basename();
+	my $thisf = File::Spec->rel2abs($0);
+	my $thisd = File::Basename::dirname($thisf);
+	chdir($thisd);
+}
+
+# load libraries
+require './test-lib.pm';
 use Test;
-BEGIN { plan tests => 189 };
+BEGIN { plan tests => 202 };
 
 # debugging
 # use Debug::ShowStuff ':all';
@@ -278,29 +289,29 @@ if (1) { ##i
 
 
 #------------------------------------------------------------------------------
-##= invalid-structure-opening-string
+##= multiple-structures
 #
 if (1) { ##i
 	# two strings
 	eval_error (
-		'invalid-structure-opening-string',
+		'multiple-structures',
 		sub { JSON::Relaxed::Parser->new()->parse('"x" "y"') }
 	);
 	
 	# two strings with comma between them
 	eval_error (
-		'invalid-structure-opening-string',
+		'multiple-structures',
 		sub { JSON::Relaxed::Parser->new()->parse('"x" , "y"') }
 	);
 	
 	# a string then a structure
 	eval_error (
-		'invalid-structure-opening-string',
+		'multiple-structures',
 		sub { JSON::Relaxed::Parser->new()->parse('"x" {}') }
 	);
 }
 #
-# invalid-structure-opening-string
+# multiple-structures
 #------------------------------------------------------------------------------
 
 
@@ -757,9 +768,16 @@ if (1) {
 ##= multiple-structures
 #
 if (1) {
+	# extra structure
 	eval_error (
 		'multiple-structures',
 		sub { JSON::Relaxed::Parser->new()->parse('{}[]') }
+	);
+	
+	# extra string
+	eval_error (
+		'multiple-structures',
+		sub { JSON::Relaxed::Parser->new()->parse('{}"whatever"') }
 	);
 }
 #
@@ -902,6 +920,64 @@ if (1) {
 }
 #
 # from_rjson
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+##= extra_tokens_ok
+#
+if (1) { ##i
+	my ($parser, $struct);
+	
+	# get parser
+	$parser = JSON::Relaxed::Parser->new();
+	
+	# initial extra_tokens_ok should be 0
+	comp($parser->extra_tokens_ok(), 0);
+	
+	# set extra_tokens_ok to true
+	$parser->extra_tokens_ok(1);
+	comp($parser->extra_tokens_ok(), 1);
+	
+	# parse rjson with multiple strings
+	$struct = $parser->parse('"abc" "whatever"');
+	error_from_rjson();
+	comp($struct, 'abc');
+	
+	# parse rjson with extra hash
+	$struct = $parser->parse('{x:11}{j=2}');
+	error_from_rjson();
+	comp($struct->{'x'}, 11);
+	
+	# parse rjson with extra string
+	$struct = $parser->parse('{x:112}"whatever"');
+	error_from_rjson();
+	comp($struct->{'x'}, 112);
+	
+	# set extra_tokens_ok back to false
+	$parser->extra_tokens_ok(0);
+	comp($parser->extra_tokens_ok(), 0);
+	
+	# should now get error when parsing with multiple strings
+	eval_error (
+		'multiple-structures',
+		sub { $parser->parse('"abc" "whatever"') }
+	);
+	
+	# should now get error when parsing with extra structures
+	eval_error (
+		'multiple-structures',
+		sub { $parser->parse('{x:112}[]') }
+	);
+	
+	# should now get error when parsing with extra string
+	eval_error (
+		'multiple-structures',
+		sub { $parser->parse('{x:112}"whatever"') }
+	);
+}
+#
+# extra_tokens_ok
 #------------------------------------------------------------------------------
 
 

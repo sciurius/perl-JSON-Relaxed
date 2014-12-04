@@ -6,7 +6,7 @@ use strict;
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # global error messages
 our $err_id;
@@ -49,7 +49,7 @@ JSON::Relaxed -- An extension of JSON that allows for better human-readability.
 
 =head1 INSTALLATION
 
-String::Util can be installed with the usual routine:
+JSON::Relaxed can be installed with the usual routine:
 
  perl Makefile.PL
  make
@@ -92,9 +92,9 @@ Like Perl, RJSON allows treats commas as separators.  If nothing is before,
 after, or between commas, those commas are just ignored:
 
  {
-	 , // look, nothing before this comma
-	 "data",
-	 , // nothing after this comma
+    , // look, nothing before this comma
+    "data",
+    , // nothing after this comma
  }
 
 =item * single quotes, double quotes, no quotes
@@ -176,6 +176,56 @@ sub from_rjson {
 #------------------------------------------------------------------------------
 
 
+#------------------------------------------------------------------------------
+# object-oriented parsing
+#
+
+=head2 Object-oriented parsing
+
+To parse using an object, create a C<JSON::Relaxed::Parser> object, like this:
+
+ $parser = JSON::Relaxed::Parser->new();
+
+Then call the parser's <code>parse</code> method, passing in the RJSON string:
+
+ $structure = $parser->parse($rjson);
+
+B<Methods>
+
+=over 4
+
+=item * $parser->extra_tokens_ok()
+
+C<extra_tokens_ok()> sets/gets the C<extra_tokens_ok> property. By default,
+C<extra_tokens_ok> is false.  If by C<extra_tokens_ok> is true then the
+C<multiple-structures> isn't triggered and the parser returns the first
+structure it finds.  So, for example, the following code would return undef and
+sets the C<multiple-structures> error:
+
+ $parser = JSON::Relaxed::Parser->new();
+ $structure = $parser->parse('{"x":1} []');
+
+However, by setting C<multiple-structures> to true, a hash structure is
+returned, the extra code after that first hash is ignored, and no error is set:
+
+ $parser = JSON::Relaxed::Parser->new();
+ $parser->extra_tokens_ok(1);
+ $structure = $parser->parse('{"x":1} []');
+
+=back
+
+=cut
+
+#
+# object-oriented parsing
+#------------------------------------------------------------------------------
+
+
+
+#------------------------------------------------------------------------------
+# error codes
+#
+
 =head2 Error codes
 
 When JSON::Relaxed encounters a parsing error it returns C<undef> and sets two
@@ -186,9 +236,7 @@ global variables:
 =item * $JSON::Relaxed::err_id
 
 C<$err_id> is a unique code for a specific error.  Every code is set in only
-one place in JSON::Relaxed.  The codes shouldn't change as JSON::Relaxed
-evolves, though they might occasionally get phased out when they need to be
-replaced by multiple, more detailed codes.
+one place in JSON::Relaxed.
 
 =item * $JSON::Relaxed::err_msg
 
@@ -240,17 +288,6 @@ A comment was started with /* but was never closed. For example:
 
  $parser->parse('/*')
 
-=item * C<invalid-structure-opening-string>
-
-This error happens when the document opens with a string, but then there are
-still other data after that string.  JSON::Relaxed allows a document to consist
-of just a single string, but that string must be the only structure in the
-document.  For example, the following code would trigger errors:
-
- $parser->parse('"x" "y"')
- $parser->parse('"x", "y"')
- $parser->parse('"x" {}')
-
 =item * C<invalid-structure-opening-character>
 
 The document opens with an invalid structural character like a comma or colon.
@@ -268,10 +305,8 @@ consist of a single hash, a single array, or a single string. The following
 examples would trigger this error.
 
  $parse->parse('{}[]')
- $parse->parse('{} 'whatever')
-
-Note that if a structure opens with a string and then has another structure
-you'll get the C<invalid-structure-opening-string> error.
+ $parse->parse('{} "whatever"')
+ $parse->parse('"abc" "def"')
 
 =item * C<unknown-token-after-key>
 
@@ -333,12 +368,14 @@ This error is triggered when a quote isn't closed. For example:
  $parse->parse("'whatever")
  $parse->parse('"whatever') }
 
-
 =back
 
 
-
 =cut
+
+#
+# error codes
+#------------------------------------------------------------------------------
 
 
 #------------------------------------------------------------------------------
@@ -614,6 +651,25 @@ sub new {
 
 
 #------------------------------------------------------------------------------
+# extra_tokens_ok
+#
+sub extra_tokens_ok {
+	my ($parser) = @_;
+	
+	# set value
+	if (@_ > 1) {
+		$parser->{'extra_tokens_ok'} = $_[1] ? 1 : 0;
+	}
+	
+	# return
+	return $parser->{'extra_tokens_ok'} ? 1 : 0;
+}
+#
+# extra_tokens_ok
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
 # error
 #
 sub error {
@@ -882,11 +938,11 @@ sub parse {
 	# special case: entire structure is a single scalar
 	# NOTE: Some versions of JSON do not allow a single scalar as an entire
 	# JSON document.
-	if (@tokens == 1) {
-		# if single scalar is a string
-		if ( $parser->is_string($tokens[0]) )
-			{ return $tokens[0]->as_perl() }
-	}
+	#if (@tokens == 1) {
+	#	# if single scalar is a string
+	#	if ( $parser->is_string($tokens[0]) )
+	#		{ return $tokens[0]->as_perl() }
+	#}
 	
 	# must be at least one token
 	if (! @tokens) {
@@ -1135,17 +1191,9 @@ sub structure {
 	if (! defined $opener)
 		{ return undef }
 	
-	# If the token is an object then it's a string, which we shouldn't get at
-	# this point. Remember that JSON::Relaxed allows structures that consist of
-	# just a single string, but if that's the case then that special case
-	# should have been caught earlier in the parsing process.
-	if (ref $opener) {
-		return $parser->error(
-			'invalid-structure-opening-string',
-			'expected { or [ but got ' .
-			$parser->invalid_token($opener) . ' ' .
-			'instead'
-		);
+	# string
+	if ($parser->is_string($opener)) {
+		$rv = $opener->as_perl();
 	}
 	
 	# opening of hash
@@ -1170,14 +1218,16 @@ sub structure {
 	
 	# If this is the outer structure, and there are any tokens left, then
 	# that's a multiple structure document.  We don't allow that sort of thing
-	# around here.
+	# around here unless extra_tokens_ok is explicitly set to ok
 	if ($opts{'top'}) {
 		if (! $parser->is_error) {
 			if (@$tokens) {
-				return $parser->error(
-					'multiple-structures',
-					'the string being parsed contains two separate structures, only one is allowed'
-				);
+				unless ($parser->extra_tokens_ok()) {
+					return $parser->error(
+						'multiple-structures',
+						'the string being parsed contains two separate structures, only one is allowed'
+					);
+				}
 			}
 		}
 	}
@@ -1286,10 +1336,6 @@ sub build {
 	TOKENLOOP:
 	while (@$tokens) {
 		my $next = shift(@$tokens);
-		
-		# TESTING
-		# println '$next: ', $next; ##i
-		
 		# what is allowed after opening brace:
 		#	closing brace
 		#	comma
@@ -1617,6 +1663,39 @@ sub invalid_array_token {
 
 #
 # JSON::Relaxed::Parser::Structure::Array
+###############################################################################
+
+
+
+###############################################################################
+# JSON::Relaxed::Parser::Token::String::Quoted
+#
+package JSON::Relaxed::Parser::Token::String;
+use strict;
+
+# debugging
+# use Debug::ShowStuff ':all';
+
+
+#------------------------------------------------------------------------------
+# POD
+#
+
+=head2 JSON::Relaxed::Parser::Token::String
+
+Base class . Nothing actually happens in this package, it's just a base class
+for JSON::Relaxed::Parser::Token::String::Quoted and
+JSON::Relaxed::Parser::Token::String::Unquoted.
+
+=cut
+
+#
+# POD
+#------------------------------------------------------------------------------
+
+
+#
+# JSON::Relaxed::Parser::Token::String
 ###############################################################################
 
 
@@ -2007,6 +2086,16 @@ F<miko@idocs.com>
 =item Version 0.01    Nov 30, 2014
 
 Initial version.
+
+=item Version 0.02    Dec 3, 2014
+
+Fixed test.t so that it can load lib.pm when it runs.
+
+Added $parser->extra_tokens_ok(). Removed error code
+C<invalid-structure-opening-string> and allowed that error to fall through to
+C<multiple-structures>.
+
+Cleaned up documentation.
 
 =back
 

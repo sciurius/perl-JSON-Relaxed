@@ -34,7 +34,7 @@ SYNOPSIS
 
 INSTALLATION
 
-    String::Util can be installed with the usual routine:
+    JSON::Relaxed can be installed with the usual routine:
 
      perl Makefile.PL
      make
@@ -76,9 +76,9 @@ DESCRIPTION
       before, after, or between commas, those commas are just ignored:
 
        {
-               , // look, nothing before this comma
-               "data",
-               , // nothing after this comma
+          , // look, nothing before this comma
+          "data",
+          , // nothing after this comma
        }
 
       * single quotes, double quotes, no quotes
@@ -141,6 +141,39 @@ DESCRIPTION
 
      $structure = from_rjson($rjson);
 
+ Object-oriented parsing
+
+    To parse using an object, create a JSON::Relaxed::Parser object, like
+    this:
+
+     $parser = JSON::Relaxed::Parser->new();
+
+    Then call the parser's <code>parse</code> method, passing in the RJSON
+    string:
+
+     $structure = $parser->parse($rjson);
+
+    Methods
+
+      * $parser->extra_tokens_ok()
+
+      extra_tokens_ok() sets/gets the extra_tokens_ok property. By default,
+      extra_tokens_ok is false. If by extra_tokens_ok is true then the
+      multiple-structures isn't triggered and the parser returns the first
+      structure it finds. So, for example, the following code would return
+      undef and sets the multiple-structures error:
+
+       $parser = JSON::Relaxed::Parser->new();
+       $structure = $parser->parse('{"x":1} []');
+
+      However, by setting multiple-structures to true, a hash structure is
+      returned, the extra code after that first hash is ignored, and no
+      error is set:
+
+       $parser = JSON::Relaxed::Parser->new();
+       $parser->extra_tokens_ok(1);
+       $structure = $parser->parse('{"x":1} []');
+
  Error codes
 
     When JSON::Relaxed encounters a parsing error it returns undef and sets
@@ -149,9 +182,7 @@ DESCRIPTION
       * $JSON::Relaxed::err_id
 
       $err_id is a unique code for a specific error. Every code is set in
-      only one place in JSON::Relaxed. The codes shouldn't change as
-      JSON::Relaxed evolves, though they might occasionally get phased out
-      when they need to be replaced by multiple, more detailed codes.
+      only one place in JSON::Relaxed.
 
       * $JSON::Relaxed::err_msg
 
@@ -200,18 +231,6 @@ DESCRIPTION
 
        $parser->parse('/*')
 
-      * invalid-structure-opening-string
-
-      This error happens when the document opens with a string, but then
-      there are still other data after that string. JSON::Relaxed allows a
-      document to consist of just a single string, but that string must be
-      the only structure in the document. For example, the following code
-      would trigger errors:
-
-       $parser->parse('"x" "y"')
-       $parser->parse('"x", "y"')
-       $parser->parse('"x" {}')
-
       * invalid-structure-opening-character
 
       The document opens with an invalid structural character like a comma
@@ -229,10 +248,8 @@ DESCRIPTION
       string. The following examples would trigger this error.
 
        $parse->parse('{}[]')
-       $parse->parse('{} 'whatever')
-
-      Note that if a structure opens with a string and then has another
-      structure you'll get the invalid-structure-opening-string error.
+       $parse->parse('{} "whatever"')
+       $parse->parse('"abc" "def"')
 
       * unknown-token-after-key
 
@@ -563,6 +580,12 @@ INTERNALS
 
       This static method build the unknown-array-token error message.
 
+ JSON::Relaxed::Parser::Token::String
+
+    Base class . Nothing actually happens in this package, it's just a base
+    class for JSON::Relaxed::Parser::Token::String::Quoted and
+    JSON::Relaxed::Parser::Token::String::Unquoted.
+
  JSON::Relaxed::Parser::Token::String::Quoted
 
     A JSON::Relaxed::Parser::Token::String::Quoted object represents a
@@ -690,4 +713,14 @@ VERSION
     Version 0.01 Nov 30, 2014
 
       Initial version.
+
+    Version 0.02 Dec 3, 2014
+
+      Fixed test.t so that it can load lib.pm when it runs.
+
+      Added $parser->extra_tokens_ok(). Removed error code
+      invalid-structure-opening-string and allowed that error to fall
+      through to multiple-structures.
+
+      Cleaned up documentation.
 
