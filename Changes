@@ -12,3 +12,10 @@ JSON::Relaxed
       through to multiple-structures.
 
       Cleaned up documentation.
+
+    Version 0.03 Dec 6, 2014
+
+      Modified test for parse_chars to normalize newlines. Apparently the
+      way Perl on Windows handles newline is different than what I
+      expected, but as long as it's recognizing newlines and|or carriage
+      returns then the test should pass.

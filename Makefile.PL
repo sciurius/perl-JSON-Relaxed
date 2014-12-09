@@ -3,16 +3,16 @@ my ($make_args);
 
 # WriteMakefile params
 $make_args = {
-               'AUTHOR' => 'Miko O\'Sullivan <miko@idocs.com>',
-               'EXE_FILES' => [],
-               'ABSTRACT' => 'JSON::Relaxed -- An extension of JSON that allows for better human-readability.',
-               'VERSION_FROM' => 'lib/JSON/Relaxed.pm',
                'PL_FILES' => {},
-               'NAME' => 'JSON::Relaxed',
                'LICENSE' => 'perl',
+               'EXE_FILES' => [],
+               'NAME' => 'JSON::Relaxed',
                'PREREQ_PM' => {
                                 'Test' => 0
-                              }
+                              },
+               'VERSION_FROM' => 'lib/JSON/Relaxed.pm',
+               'ABSTRACT' => 'JSON::Relaxed -- An extension of JSON that allows for better human-readability.',
+               'AUTHOR' => 'Miko O\'Sullivan <miko@idocs.com>'
              };
 
 

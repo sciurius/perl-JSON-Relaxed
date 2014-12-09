@@ -39,8 +39,12 @@ if (1) { ##i
 	# should not be any errors
 	error_from_rjson();
 	
+	# normalize newlines
+	foreach my $el (@got)
+		{ $el =~ s|[\r\n]+|\n|sg }
+	
 	# set array we should get
-	@should = ("//", "a", "\r\n", "/*", "b", "*/", "\r\n", "[", "\"", "c", "\\d", "e", "\"", "]");
+	@should = ("//", "a", "\n", "/*", "b", "*/", "\n", "[", "\"", "c", "\\d", "e", "\"", "]");
 	
 	# compare
 	set_ok(arr_comp(\@got, \@should));

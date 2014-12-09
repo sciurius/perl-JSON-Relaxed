@@ -6,7 +6,7 @@ use strict;
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 # global error messages
 our $err_id;
@@ -2096,6 +2096,12 @@ C<invalid-structure-opening-string> and allowed that error to fall through to
 C<multiple-structures>.
 
 Cleaned up documentation.
+
+=item Version 0.03    Dec 6, 2014
+
+Modified test for parse_chars to normalize newlines.  Apparently the way Perl
+on Windows handles newline is different than what I expected, but as long as
+it's recognizing newlines and|or carriage returns then the test should pass.
 
 =back
 
