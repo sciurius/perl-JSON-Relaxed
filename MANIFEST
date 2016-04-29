@@ -6,8 +6,5 @@ README
 Build.PL
 Makefile.PL
 t/test.t
-t/test-lib.pm
-t/full.rjson
-t/parse-chars.rjson
 lib/JSON/Relaxed.pm
 lib/JSON/Relaxed.pod

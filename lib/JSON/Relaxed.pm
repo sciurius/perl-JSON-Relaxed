@@ -1,17 +1,21 @@
 package JSON::Relaxed;
 use strict;
 
-# debugging
+# debug tools
 # use Debug::ShowStuff ':all';
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 # global error messages
 our $err_id;
 our $err_msg;
 
+
+#------------------------------------------------------------------------------
+# POD
+#
 
 =head1 NAME
 
@@ -91,11 +95,11 @@ RJSON supports JavaScript-like comments:
 Like Perl, RJSON allows treats commas as separators.  If nothing is before,
 after, or between commas, those commas are just ignored:
 
- {
-    , // look, nothing before this comma
+ [
+    , // nothing before this comma
     "data",
     , // nothing after this comma
- }
+ ]
 
 =item * single quotes, double quotes, no quotes
 
@@ -149,6 +153,11 @@ C<b> is assigned 2, and C<c> is assigned undef:
 =back
 
 =cut
+
+#
+# POD
+#------------------------------------------------------------------------------
+
 
 
 #------------------------------------------------------------------------------
@@ -383,11 +392,7 @@ This error is triggered when a quote isn't closed. For example:
 #
 use base 'Exporter';
 use vars qw[@EXPORT_OK %EXPORT_TAGS];
-
-# the following functions accept a value and return a modified version of
-# that value
-push @EXPORT_OK, qw[from_rjson];
-
+push @EXPORT_OK, 'from_rjson';
 %EXPORT_TAGS = ('all' => [@EXPORT_OK]);
 #
 # export
@@ -635,7 +640,7 @@ sub new {
 	my $parser = bless({}, $class);
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# "unknown" object character
 	if (defined $opts{'unknown'}) {
@@ -838,6 +843,9 @@ i.e. it is one of the following two couplets:
 sub is_comment_opener {
 	my ($parser, $token) = @_;
 	
+	# TESTING
+	# println subname(); ##i
+	
 	# if not defined, return false
 	if (! defined $token)
 		{ return 0 }
@@ -891,7 +899,7 @@ sub parse {
 	my (@chars, @tokens, $rv);
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# clear global error information
 	undef $JSON::Relaxed::err_id;
@@ -1014,7 +1022,7 @@ sub parse_chars {
 	#   /*
 	#   */
 	#   {any character}
-	@rv = split(m/(\\.|\r\n|\/\/|\/\*|\*\/|.)/sx, $raw);
+	@rv = split(m/(\\.|\r\n|\r|\n|\/\/|\/\*|\*\/|,|:|{|}|\[|\]|\s+|.)/sx, $raw);
 	
 	# remove empty strings
 	@rv = grep {length($_)} @rv;
@@ -1070,10 +1078,13 @@ sub tokenize {
 	my (@chars, @tokens);
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# create own array of characters
 	@chars = @$chars_org;
+	
+	# TESTING
+	# println '[', join('] [', @chars), ']';
 	
 	# loop through characters
 	CHAR_LOOP:
@@ -1126,7 +1137,7 @@ sub tokenize {
 		}
 		
 		# white space: ignore
-		elsif ($char !~ m|\S|) {
+		elsif ($char =~ m|\s+|) {
 		}
 		
 		# structural characters
@@ -1179,7 +1190,7 @@ sub structure {
 	my ($rv, $opener);
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# get opening token
 	if (defined $opts{'opener'})
@@ -1294,6 +1305,7 @@ use strict;
 # debugging
 # use Debug::ShowStuff ':all';
 
+
 #------------------------------------------------------------------------------
 # POD
 #
@@ -1329,7 +1341,7 @@ sub build {
 	my $rv = {};
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# build hash
 	# work through tokens until closing brace
@@ -1537,7 +1549,7 @@ sub build {
 	my $rv = [];
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# build array
 	# work through tokens until closing brace
@@ -1767,7 +1779,7 @@ sub new {
 	my $str = bless({}, $class);
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# initialize hash
 	$str->{'quote'} = $quote;
@@ -1904,7 +1916,7 @@ sub new {
 	my $str = bless({}, $class);
 	
 	# TESTING
-	# println subname(class=>1); ##i
+	# println subname(); ##i
 	
 	# initialize hash
 	$str->{'raw'} = $char;
@@ -1917,7 +1929,7 @@ sub new {
 			{ last TOKEN_LOOP }
 		
 		# if space character, we're done
-		if ($chars->[0] !~ m|\S|s)
+		if ($chars->[0] =~ m|\s+|s)
 			{ last TOKEN_LOOP }
 		
 		# if opening of a comment, we're done
@@ -2081,6 +2093,10 @@ F<miko@idocs.com>
 
 =head1 VERSION
 
+Version: 0.04
+
+=head1 HISTORY
+
 =over 4
 
 =item Version 0.01    Nov 30, 2014
@@ -2103,7 +2119,35 @@ Modified test for parse_chars to normalize newlines.  Apparently the way Perl
 on Windows handles newline is different than what I expected, but as long as
 it's recognizing newlines and|or carriage returns then the test should pass.
 
+=item Version 0.04 Apr 28, 2016
+
+Fixed bug in which end of line did not terminate some line comments.
+
+Minor cleanups of documentation.
+
+Cleaned up test.pl.
+
 =back
 
 
 =cut
+
+#------------------------------------------------------------------------------
+# module info
+#
+{
+	# include in CPAN distribution
+	include : 1,
+	
+	# allow modules
+	allow_modules : {
+	},
+	
+	# test scripts
+	test_scripts : {
+		'Relaxed/tests/test.pl' : 1,
+	},
+}
+#
+# module info
+#------------------------------------------------------------------------------

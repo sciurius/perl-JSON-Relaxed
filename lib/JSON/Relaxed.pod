@@ -75,11 +75,11 @@ RJSON supports JavaScript-like comments:
 Like Perl, RJSON allows treats commas as separators.  If nothing is before,
 after, or between commas, those commas are just ignored:
 
- {
-    , // look, nothing before this comma
+ [
+    , // nothing before this comma
     "data",
     , // nothing after this comma
- }
+ ]
 
 =item * single quotes, double quotes, no quotes
 
@@ -746,6 +746,10 @@ F<miko@idocs.com>
 
 =head1 VERSION
 
+Version: 0.04
+
+=head1 HISTORY
+
 =over 4
 
 =item Version 0.01    Nov 30, 2014
@@ -767,6 +771,14 @@ Cleaned up documentation.
 Modified test for parse_chars to normalize newlines.  Apparently the way Perl
 on Windows handles newline is different than what I expected, but as long as
 it's recognizing newlines and|or carriage returns then the test should pass.
+
+=item Version 0.04 Apr 28, 2016
+
+Fixed bug in which end of line did not terminate some line comments.
+
+Minor cleanups of documentation.
+
+Cleaned up test.pl.
 
 =back
 

@@ -1,21 +1,2 @@
 JSON::Relaxed
-    Version 0.01 Nov 30, 2014
-
-      Initial version.
-
-    Version 0.02 Dec 3, 2014
-
-      Fixed test.t so that it can load lib.pm when it runs.
-
-      Added $parser->extra_tokens_ok(). Removed error code
-      invalid-structure-opening-string and allowed that error to fall
-      through to multiple-structures.
-
-      Cleaned up documentation.
-
-    Version 0.03 Dec 6, 2014
-
-      Modified test for parse_chars to normalize newlines. Apparently the
-      way Perl on Windows handles newline is different than what I
-      expected, but as long as it's recognizing newlines and|or carriage
-      returns then the test should pass.
+    Version: 0.04

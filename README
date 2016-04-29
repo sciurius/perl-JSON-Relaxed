@@ -75,11 +75,11 @@ DESCRIPTION
       Like Perl, RJSON allows treats commas as separators. If nothing is
       before, after, or between commas, those commas are just ignored:
 
-       {
-          , // look, nothing before this comma
+       [
+          , // nothing before this comma
           "data",
           , // nothing after this comma
-       }
+       ]
 
       * single quotes, double quotes, no quotes
 
@@ -710,6 +710,10 @@ AUTHOR
 
 VERSION
 
+    Version: 0.04
+
+HISTORY
+
     Version 0.01 Nov 30, 2014
 
       Initial version.
@@ -730,4 +734,12 @@ VERSION
       way Perl on Windows handles newline is different than what I
       expected, but as long as it's recognizing newlines and|or carriage
       returns then the test should pass.
+
+    Version 0.04 Apr 28, 2016
+
+      Fixed bug in which end of line did not terminate some line comments.
+
+      Minor cleanups of documentation.
+
+      Cleaned up test.pl.
 
