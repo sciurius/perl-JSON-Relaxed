@@ -780,5 +780,10 @@ Minor cleanups of documentation.
 
 Cleaned up test.pl.
 
+=item Version 0.05 Apr 30, 2016
+
+Fixed bug: Test::Most was not added to the prerequisite list. No changes
+to the functionality of the module itself.
+
 =back
 

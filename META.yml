@@ -8,7 +8,8 @@ name: JSON-Relaxed
 provides:
     JSON::Relaxed:
         file: lib/JSON/Relaxed.pm
-        version: 0.04
+        version: 0.05
 requires:
+    Test::Most: 0.34
     perl: 5.003
-version: 0.04
+version: 0.05

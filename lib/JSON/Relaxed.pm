@@ -6,7 +6,7 @@ use strict;
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 # global error messages
 our $err_id;
@@ -2126,6 +2126,11 @@ Fixed bug in which end of line did not terminate some line comments.
 Minor cleanups of documentation.
 
 Cleaned up test.pl.
+
+=item Version 0.05 Apr 30, 2016
+
+Fixed bug: Test::Most was not added to the prerequisite list. No changes
+to the functionality of the module itself.
 
 =back
 
