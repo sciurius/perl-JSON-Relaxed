@@ -1,2 +1,40 @@
-JSON::Relaxed
-    Version: 0.04
+Revision history for JSON-Relaxed
+
+0.060	2024-03-13
+
+	- Import from CPAN, BackPAN, and reconstruct history.
+	- Updated Changes. Removed history from POD.
+	- Removed lib/JSON/Relaxed.pod, LICENSE and Build.PL.
+	- Modernized Makefile.PL.
+
+0.05	2016-04-30 Miko O'Sullivan <miko@idocs.com>
+
+	- Fixed bug: Test::Most was not added to the prerequisite list. No
+      	  changes to the functionality of the module itself.
+
+0.04	2016-04-28 Miko O'Sullivan <miko@idocs.com>
+
+	- Fixed bug in which end of line did not terminate some line
+          comments.
+	- Minor cleanups of documentation.
+	- Cleaned up test.pl.
+
+0.03	2014-12-06 Miko O'Sullivan <miko@idocs.com>
+
+	- Modified test for parse_chars to normalize newlines.
+	  Apparently the way Perl on Windows handles newline is
+	  different than what I expected, but as long as it's
+	  recognizing newlines and|or carriage returns then the test
+	  should pass.
+
+0.02	2014-12-03 Miko O'Sullivan <miko@idocs.com>
+
+	- Fixed test.t so that it can load lib.pm when it runs.
+	- Added $parser->extra_tokens_ok(). Removed error code
+          invalid-structure-opening-string and allowed that error to
+	  fall through to multiple-structures.
+	- Cleaned up documentation.
+
+0.01	2014-11-30 Miko O'Sullivan <miko@idocs.com>
+
+	- Initial version.

@@ -77,9 +77,8 @@ JSON/RJSON. That feature is planned.
 
 There's been increasing support for the idea of expanding JSON to improve
 human-readability.  "Relaxed" JSON is a term that has been used to describe a
-JSON-ish format that has some features that JSON doesn't.  Although there isn't
-yet any kind of official specification, descriptions of Relaxed JSON generally
-include the following extensions to JSON:
+JSON-ish format that has some features that JSON doesn't. An (official)
+specification can be found on L<http://www.relaxedjson.org>.
 
 =over 4
 
@@ -2073,86 +2072,27 @@ sub new {
 # JSON::Relaxed::Parser::Token::Unknown
 ###############################################################################
 
-
 # return true
 1;
 
-
 __END__
 
-=head1 TERMS AND CONDITIONS
+=head1 COPYRIGHT
 
-Copyright (c) 2014 by Miko O'Sullivan.  All rights reserved.  This program is 
-free software; you can redistribute it and/or modify it under the same terms 
-as Perl itself. This software comes with B<NO WARRANTY> of any kind.
+Copyright (c) 2024 by Johan Vromans. All rights reserved. This
+program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself. This software comes with B<NO
+WARRANTY> of any kind.
+
+Original copyright 2014 by Miko O'Sullivan. All rights reserved. This
+program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself. This software comes with B<NO
+WARRANTY> of any kind.
 
 =head1 AUTHOR
 
-Miko O'Sullivan
-F<miko@idocs.com>
+Johan Vromans F<jv@cpan.org>
 
-=head1 VERSION
-
-Version: 0.04
-
-=head1 HISTORY
-
-=over 4
-
-=item Version 0.01    Nov 30, 2014
-
-Initial version.
-
-=item Version 0.02    Dec 3, 2014
-
-Fixed test.t so that it can load lib.pm when it runs.
-
-Added $parser->extra_tokens_ok(). Removed error code
-C<invalid-structure-opening-string> and allowed that error to fall through to
-C<multiple-structures>.
-
-Cleaned up documentation.
-
-=item Version 0.03    Dec 6, 2014
-
-Modified test for parse_chars to normalize newlines.  Apparently the way Perl
-on Windows handles newline is different than what I expected, but as long as
-it's recognizing newlines and|or carriage returns then the test should pass.
-
-=item Version 0.04 Apr 28, 2016
-
-Fixed bug in which end of line did not terminate some line comments.
-
-Minor cleanups of documentation.
-
-Cleaned up test.pl.
-
-=item Version 0.05 Apr 30, 2016
-
-Fixed bug: Test::Most was not added to the prerequisite list. No changes
-to the functionality of the module itself.
-
-=back
-
+Miko O'Sullivan F<miko@idocs.com>, original version.
 
 =cut
-
-#------------------------------------------------------------------------------
-# module info
-#
-{
-	# include in CPAN distribution
-	include : 1,
-	
-	# allow modules
-	allow_modules : {
-	},
-	
-	# test scripts
-	test_scripts : {
-		'Relaxed/tests/test.pl' : 1,
-	},
-}
-#
-# module info
-#------------------------------------------------------------------------------

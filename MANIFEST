@@ -1,10 +1,7 @@
 MANIFEST
 Changes
 META.yml
-LICENSE
 README
-Build.PL
 Makefile.PL
 t/test.t
 lib/JSON/Relaxed.pm
-lib/JSON/Relaxed.pod
