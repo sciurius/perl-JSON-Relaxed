@@ -394,7 +394,7 @@ push @EXPORT_OK, 'from_rjson';
 =head1 INTERNALS
 
 The following documentation is for if you want to edit the code of
-JSON::Relaxed itself.
+C<JSON::Relaxed> itself.
 
 =head2 JSON::Relaxed
 
@@ -598,8 +598,8 @@ To parse in an object oriented manner, create the parser, then parse.
 
 =item new
 
-C<JSON::Relaxed::Parser->new()> creates a parser object. Its simplest and most
-common use is without any parameters.
+C<< JSON::Relaxed::Parser->new() >> creates a parser object. Its
+simplest and most common use is without any parameters.
 
     my $parser = JSON::Relaxed::Parser->new();
 
