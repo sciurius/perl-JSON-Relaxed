@@ -1,7 +1,7 @@
 MANIFEST
 Changes
 META.yml
-README
+README.md
 Makefile.PL
 t/test.t
 lib/JSON/Relaxed.pm

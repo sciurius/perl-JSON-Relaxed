@@ -8,6 +8,7 @@ Revision history for JSON-Relaxed
 	- Modernized Makefile.PL.
 	- Basic layout changes, fix indentations, remove excessive
 	- empty lines and trailing spaces.
+	- Replace README by README.md.
 
 0.05	2016-04-30 Miko O'Sullivan <miko@idocs.com>
 
