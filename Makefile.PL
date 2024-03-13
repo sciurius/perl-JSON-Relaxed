@@ -63,7 +63,7 @@ my %w =
       },
       bugtracker => {
         web => "https://github.com/sciurius/perl-JSON-Relaxed/issues",
-        mailto => "jv@cpan.org",
+        mailto => 'jv@cpan.org',
       },
     },
   },

@@ -6,6 +6,8 @@ Revision history for JSON-Relaxed
 	- Updated Changes. Removed history from POD.
 	- Removed lib/JSON/Relaxed.pod, LICENSE and Build.PL.
 	- Modernized Makefile.PL.
+	- Basic layout changes, fix indentations, remove excessive
+	- empty lines and trailing spaces.
 
 0.05	2016-04-30 Miko O'Sullivan <miko@idocs.com>
 
