@@ -6,6 +6,8 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 ![Language Perl](https://img.shields.io/badge/Language-Perl-blue)
 
+*Note: This is a fork of the abandoned CPAN version by Miko O'Sullivan*
+
 # SYNOPSIS
 
     my ($rjson, $hash, $parser);
