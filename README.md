@@ -12,10 +12,10 @@ enjoy and participate!*
 
 # SYNOPSIS
 
-    my ($rjson, $hash, $parser);
+    use JSON::Relaxed qw(from_rjson);
 
-    # raw RJSON code
-    $rjson = <<'(RAW)';
+    # Some raw RJSON code.
+    my $rjson = <<'(RAW)';
     /* Javascript-like comments are allowed */
     {
         // single or double quotes allowed
@@ -32,11 +32,11 @@ enjoy and participate!*
     }
     (RAW)
 
-    # subroutine parsing
-    $hash = from_rjson($rjson);
+    # Subroutine parsing.
+    my $hash = from_rjson($rjson);
 
-    # object-oriented parsing
-    $parser = JSON::Relaxed::Parser->new();
+    # Object-oriented parsing.
+    my $parser = JSON::Relaxed::Parser->new();
     $hash = $parser->parse($rjson);
 
 # DESCRIPTION
@@ -88,7 +88,30 @@ specification can be found on [http://www.relaxedjson.org](http://www.relaxedjso
             Starflower
         ]
 
-    Note that unquoted boolean values are still treated as boolean values, so the
+    Quoted strings may contain escaped characters like `\t` for tab and
+    `\n` for newline.
+    Arbitrary unicode characters can be escaped with `\u` followed by
+    four hexadecimal digits.
+
+    As an extension to the specification `JSON::Relaxed` allows quoted
+    strings may be split over multiple lines:
+
+        [
+            "Star" \
+            "flower"
+        ]
+
+    This produces a single string, `"Starflower"`.
+    Note that this is different from
+
+        [
+            "Star \
+            flower"
+        ]
+
+    which produces `"Star \n    flower"` (where `\n` is a newline).
+
+    Unquoted boolean values are still treated as boolean values, so the
     following are NOT the same:
 
         [
@@ -590,7 +613,18 @@ through the array of characters in the document.
 
     `new()` instantiates a `JSON::Relaxed::Parser::Token::String::Quoted` object
     and slurps in all the characters in the characters array until it gets to the
-    closing quote.  Then it returns the new `Quoted` object.
+    closing quote.
+
+    If the string is followed by optional whitespace, a backslash, a
+    newline, optional whitespace and another string, the latter string
+    will be appended to the current string. In other words,
+
+        "foo" \
+        "bar"
+
+    will produce a single string, `"foobar"`.
+
+    `new()` returns the new `Quoted` object.
 
     A `Quoted` object has the following two properties:
 
@@ -599,6 +633,8 @@ through the array of characters in the document.
     are in `raw`. So, for example, `\n` would become an actual newline.
 
     `quote`: the delimiting quote, i.e. either a single quote or a double quote.
+    In case of a combined string, the delimeter quote of the _final_
+    string part.
 
 - `as_perl()`
 

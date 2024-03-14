@@ -22,10 +22,10 @@ JSON::Relaxed -- An extension of JSON that allows for better human-readability.
 
 =head1 SYNOPSIS
 
-    my ($rjson, $hash, $parser);
+    use JSON::Relaxed qw(from_rjson);
 
-    # raw RJSON code
-    $rjson = <<'(RAW)';
+    # Some raw RJSON code.
+    my $rjson = <<'(RAW)';
     /* Javascript-like comments are allowed */
     {
         // single or double quotes allowed
@@ -42,11 +42,11 @@ JSON::Relaxed -- An extension of JSON that allows for better human-readability.
     }
     (RAW)
 
-    # subroutine parsing
-    $hash = from_rjson($rjson);
+    # Subroutine parsing.
+    my $hash = from_rjson($rjson);
 
-    # object-oriented parsing
-    $parser = JSON::Relaxed::Parser->new();
+    # Object-oriented parsing.
+    my $parser = JSON::Relaxed::Parser->new();
     $hash = $parser->parse($rjson);
 
 =head1 INSTALLATION
@@ -109,7 +109,30 @@ are also parsed as strings. So, the following data items are equivalent:
         Starflower
     ]
 
-Note that unquoted boolean values are still treated as boolean values, so the
+Quoted strings may contain escaped characters like C<\t> for tab and
+C<\n> for newline.
+Arbitrary unicode characters can be escaped with C<\u> followed by
+four hexadecimal digits.
+
+As an extension to the specification C<JSON::Relaxed> allows quoted
+strings may be split over multiple lines:
+
+    [
+        "Star" \
+        "flower"
+    ]
+
+This produces a single string, C<"Starflower">.
+Note that this is different from
+
+    [
+        "Star \
+        flower"
+    ]
+
+which produces C<"Star \n    flower"> (where C<\n> is a newline).
+
+Unquoted boolean values are still treated as boolean values, so the
 following are NOT the same:
 
     [
@@ -1697,7 +1720,18 @@ through the array of characters in the document.
 
 C<new()> instantiates a C<JSON::Relaxed::Parser::Token::String::Quoted> object
 and slurps in all the characters in the characters array until it gets to the
-closing quote.  Then it returns the new C<Quoted> object.
+closing quote.
+
+If the string is followed by optional whitespace, a backslash, a
+newline, optional whitespace and another string, the latter string
+will be appended to the current string. In other words,
+
+    "foo" \
+    "bar"
+
+will produce a single string, C<"foobar">.
+
+C<new()> returns the new C<Quoted> object.
 
 A C<Quoted> object has the following two properties:
 
@@ -1706,6 +1740,8 @@ escape characters then the escapes are processed and the unescaped characters
 are in C<raw>. So, for example, C<\n> would become an actual newline.
 
 C<quote>: the delimiting quote, i.e. either a single quote or a double quote.
+In case of a combined string, the delimeter quote of the I<final>
+string part.
 
 =cut
 
@@ -1726,13 +1762,30 @@ sub new {
 	my $next = shift(@$chars);
 
 	# if this is the matching quote, we're done
-	if ($next eq $str->{'quote'})
-	    { return $str }
+	if ($next eq $str->{'quote'}) {
+	    # However, if the quote is followed by [ws] \ \n [ws]
+	    # and a new quote, append the new string.
+	    if ( @$chars > 2 ) {
+		my $i = 0;
+		$i++ if $chars->[$i] !~ /\S/;
+		if ( $chars->[$i] eq "\\\n" ) {
+		    $i++;
+		    $i++ if $chars->[$i] !~ /\S/;
+		    # if ( $chars->[$i] eq $str->{quote} ) {
+		    if ( $chars->[$i] =~ /['"]/ ) {
+			$str->{quote} = $chars->[$i];
+			splice( @$chars, 0, $i+1 );
+			next;
+		    }
+		}
+	    }
+	    return $str;
+	}
 
 	# if leading slash, check if it's a special escape character
 	if ($next =~ s|^\\(.)|$1|s) {
 	    if ($JSON::Relaxed::esc{$next}) {
-		$next = $JSON::Relaxed::esc{$next}
+		$next = $JSON::Relaxed::esc{$next};
 	    }
 	    # \uXXXX escapes.
 	    elsif ( $next eq 'u' && @$chars >= 4 ) {
