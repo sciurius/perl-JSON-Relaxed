@@ -1,5 +1,9 @@
 Revision history for JSON-Relaxed
 
+0.000
+	- Add \uXXXXX escapes in strings. (Issue #3)
+	- Docs and layout changes.
+
 0.060	2024-03-13
 
 	- Import from CPAN, BackPAN, and reconstruct history.
@@ -7,7 +11,7 @@ Revision history for JSON-Relaxed
 	- Removed lib/JSON/Relaxed.pod, LICENSE and Build.PL.
 	- Modernized Makefile.PL.
 	- Basic layout changes, fix indentations, remove excessive
-	- empty lines and trailing spaces.
+	- Empty lines and trailing spaces.
 	- Replace README by README.md.
 
 0.05	2016-04-30 Miko O'Sullivan <miko@idocs.com>

@@ -435,6 +435,9 @@ changed to single characters. C<%esc> is defined as follows.
         'v'   => chr(11), #  Vertical tab
     );
 
+Additionally, C<\u> followed by exactly 4 hexadecimal digits will
+produce the character corresponding to the Unicode code point.
+
 =cut
 
 # escape characters
@@ -1728,8 +1731,18 @@ sub new {
 
 	# if leading slash, check if it's a special escape character
 	if ($next =~ s|^\\(.)|$1|s) {
-	    if ($JSON::Relaxed::esc{$next})
-		{ $next = $JSON::Relaxed::esc{$next} }
+	    if ($JSON::Relaxed::esc{$next}) {
+		$next = $JSON::Relaxed::esc{$next}
+	    }
+	    # \uXXXX escapes.
+	    elsif ( $next eq 'u' && @$chars >= 4 ) {
+		# Let's not be too relaxed -- require exactly 4 hexits.
+		my $u = join('',@$chars[0..3]);
+		if ( $u =~ /^[[:xdigit:]]+$/ ) {
+		    splice( @$chars, 0, 4 );
+		    $next = chr(hex($u));
+		}
+	    }
 	}
 
 	# add to raw

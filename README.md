@@ -303,7 +303,7 @@ Following is a list of all error codes in JSON::Relaxed:
 # INTERNALS
 
 The following documentation is for if you want to edit the code of
-JSON::Relaxed itself.
+`JSON::Relaxed` itself.
 
 ## JSON::Relaxed
 
@@ -329,6 +329,9 @@ definitions of various structures.
                 't'   => "\t",    #  Tab
                 'v'   => chr(11), #  Vertical tab
             );
+
+        Additionally, `\u` followed by exactly 4 hexadecimal digits will
+        produce the character corresponding to the Unicode code point.
 
     - Structural characters
 
@@ -400,8 +403,8 @@ To parse in an object oriented manner, create the parser, then parse.
 
 - new
 
-    `JSON::Relaxed::Parser-`new()> creates a parser object. Its simplest and most
-    common use is without any parameters.
+    `JSON::Relaxed::Parser->new()` creates a parser object. Its
+    simplest and most common use is without any parameters.
 
         my $parser = JSON::Relaxed::Parser->new();
 
