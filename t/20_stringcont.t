@@ -1,4 +1,4 @@
-# perl
+#! perl
 
 use v5.26;
 
