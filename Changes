@@ -1,9 +1,17 @@
 Revision history for JSON-Relaxed
 
 0.000
+
+	- Use Test::More instead of Test::Most, 
+	- Remove t/test-lib (not used and identical to t/lib).
+
+0.061	2024-03-14
+
 	- Add \uXXXXX escapes in strings. (Issue #3)
 	- Allow strings to be joined when separated with \ \n.
 	  (This is an extension to the speification.)
+	- Rename test.t to 01_test.t.
+	- Add more tests.
 	- Docs and layout changes.
 
 0.060	2024-03-13

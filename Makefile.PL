@@ -46,7 +46,7 @@ my %w =
 #  },
 
   TEST_REQUIRES  => {
-    'Test::Most'	=> 0,
+    'Test::More'	=> 0,
     'FileHandle'	=> 0,
     %prereq,
   },
