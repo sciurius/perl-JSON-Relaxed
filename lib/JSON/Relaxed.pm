@@ -238,6 +238,16 @@ returned, the extra code after that first hash is ignored, and no error is set:
     $parser->extra_tokens_ok(1);
     $structure = $parser->parse('{"x":1} []');
 
+=item * $parser->err_id()
+
+A convenient way to access C<$JSON::Relaxed::err_id>,
+see L<below|/"Error-codes">.
+
+=item * $parser->err_msg()
+
+A convenient way to access C<$JSON::Relaxed::err_msg>,
+see L<below|/"Error-codes">.
+
 =back
 
 =cut
@@ -695,6 +705,35 @@ sub error {
 }
 #
 # error
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# err_id   err_msg
+#
+
+=item Parser error codes
+
+=over
+
+=item * $parser->err_id()
+
+A convenient way to access C<$JSON::Relaxed::err_id>,
+see L<Error codes|/"Error-codes">.
+
+=item * $parser->err_msg()
+
+A convenient way to access C<$JSON::Relaxed::err_msg>,
+see L<Error codes|/"Error-codes">.
+
+=back
+
+=cut
+
+sub err_id  { $JSON::Relaxed::err_id  }
+sub err_msg { $JSON::Relaxed::err_msg }
+
+#
+# err_id   err_msg
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
