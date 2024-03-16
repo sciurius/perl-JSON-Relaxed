@@ -188,6 +188,16 @@ Then call the parser's &lt;code>parse&lt;/code> method, passing in the RJSON str
         $parser->extra_tokens_ok(1);
         $structure = $parser->parse('{"x":1} []');
 
+- $parser->err\_id()
+
+    A convenient way to access `$JSON::Relaxed::err_id`,
+    see [below](#error-codes).
+
+- $parser->err\_msg()
+
+    A convenient way to access `$JSON::Relaxed::err_msg`,
+    see [below](#error-codes).
+
 ## Error codes
 
 When JSON::Relaxed encounters a parsing error it returns `undef` and sets two
@@ -414,10 +424,8 @@ A `JSON::Relaxed::Parser` object parses the raw RJSON string. You don't
 need to instantiate a parser if you just want to use the default settings.
 In that case just use [from\_rjson()](#from_rjson).
 
-You would create a `JSON::Relaxed::Parser` object if you want to customize how
-the string is parsed.  I say "would" because there isn't actually any
-customization in these early releases. When there is you'll use a parser
-object.
+You must create a `JSON::Relaxed::Parser` object if you want to
+customize how the string is parsed.
 
 To parse in an object oriented manner, create the parser, then parse.
 
@@ -438,6 +446,17 @@ To parse in an object oriented manner, create the parser, then parse.
         exists only for testing JSON::Relaxed. It has no purpose in production use.
 
             my $parser = JSON::Relaxed::Parser->new(unknown=>'~');
+
+- Parser error codes
+    - err\_id()
+
+        A convenient way to access `$JSON::Relaxed::err_id`,
+        see [Error codes](#error-codes).
+
+    - err\_msg()
+
+        A convenient way to access `$JSON::Relaxed::err_msg`,
+        see [Error codes](#error-codes).
 
 - Parser "is" methods
 

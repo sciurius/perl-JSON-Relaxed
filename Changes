@@ -5,6 +5,7 @@ Revision history for JSON-Relaxed
 	- Add object oriented accessors to error codes.
 	- Use Test::More instead of Test::Most, 
 	- Remove t/test-lib (not used and identical to t/lib).
+	- Fix issue #2.
 
 0.061	2024-03-14
 

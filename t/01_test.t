@@ -23,7 +23,7 @@ BEGIN {
 # prepare for tests
 use Test::More;
 $ENV{'IDOCSDEV'} and die_on_fail();
-plan tests => 261;
+plan tests => 262;
 
 # load JSON::Relaxed
 require_ok( 'JSON::Relaxed' );
@@ -94,11 +94,16 @@ if (1) { ##i
 	my ($parser, $rjson, @chars, @tokens);
 
 	$parser = JSON::Relaxed::Parser->new();
-	$rjson = qq|//line\r\n|;
+	$rjson = qq|//line \r\n|;
 	@chars = $parser->parse_chars($rjson);
 
 	# should not be any errors
 	error_from_rjson('parsing line comment characters');
+
+	# the space should be separated from the newline
+	is_deeply(\@chars,
+			  ['//', qw(l i n e), ' ', "\r\n"],
+			  "line comment");
 
 	# tokenize
 	@tokens = $parser->tokenize(\@chars);

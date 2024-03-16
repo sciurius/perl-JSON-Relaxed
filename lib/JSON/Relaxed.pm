@@ -610,10 +610,8 @@ A C<JSON::Relaxed::Parser> object parses the raw RJSON string. You don't
 need to instantiate a parser if you just want to use the default settings.
 In that case just use L<from_rjson()|/from_rjson()>.
 
-You would create a C<JSON::Relaxed::Parser> object if you want to customize how
-the string is parsed.  I say "would" because there isn't actually any
-customization in these early releases. When there is you'll use a parser
-object.
+You must create a C<JSON::Relaxed::Parser> object if you want to
+customize how the string is parsed.
 
 To parse in an object oriented manner, create the parser, then parse.
 
@@ -715,12 +713,12 @@ sub error {
 
 =over
 
-=item * $parser->err_id()
+=item * err_id()
 
 A convenient way to access C<$JSON::Relaxed::err_id>,
 see L<Error codes|/"Error-codes">.
 
-=item * $parser->err_msg()
+=item * err_msg()
 
 A convenient way to access C<$JSON::Relaxed::err_msg>,
 see L<Error codes|/"Error-codes">.
@@ -1050,7 +1048,7 @@ sub parse_chars {
     #   /*
     #   */
     #   {any character}
-    @rv = split(m/(\\.|\r\n|\r|\n|\/\/|\/\*|\*\/|,|:|{|}|\[|\]|\s+|.)/sx, $raw);
+    @rv = split( m/(\\.|\r\n|\r|\n|\/\/|\/\*|\*\/|,|:|{|}|\[|\]|\s|.)/s, $raw );
 
     # remove empty strings
     @rv = grep {length($_)} @rv;
@@ -1804,6 +1802,7 @@ sub new {
 	if ($next eq $str->{'quote'}) {
 	    # However, if the quote is followed by [ws] \ \n [ws]
 	    # and a new quote, append the new string.
+	    # TODO: This probably only works with newline, not CR or CRLF...
 	    if ( @$chars > 2 ) {
 		my $i = 0;
 		$i++ if $chars->[$i] !~ /\S/;
