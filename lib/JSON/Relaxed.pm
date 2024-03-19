@@ -8,7 +8,7 @@ use strict;
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.051';
+our $VERSION = '0.052';
 
 # global error messages
 our $err_id;
@@ -30,6 +30,9 @@ New maintainer.
 The minimal perl requirement is raised to 5.26 for future features. If
 this fails the takeover will be cancelled and new features will be
 implemented in a different module.
+
+For a look at the future, see:
+L<https://github.com/sciurius/perl-JSON-Relaxed>.
 
 =head1 SYNOPSIS
 
