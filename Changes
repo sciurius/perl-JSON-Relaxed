@@ -3,6 +3,7 @@ Revision history for JSON-Relaxed
 0.000
 
 	- Add object oriented accessors to error codes.
+	- Add options to from_json and RJSON::Relaxed::Parser->new.
 	- Use Test::More instead of Test::Most, 
 	- Remove t/test-lib (not used and identical to t/lib).
 	- Fix issue #2.
@@ -25,6 +26,12 @@ Revision history for JSON-Relaxed
 	- Basic layout changes, fix indentations, remove excessive
 	- Empty lines and trailing spaces.
 	- Replace README by README.md.
+
+0.052	2024-03-19
+
+	- Takeover release.
+	- Increase minimum perl requirement to v5.26.
+	- No functional changes.
 
 0.05	2016-04-30 Miko O'Sullivan <miko@idocs.com>
 

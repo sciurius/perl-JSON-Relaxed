@@ -156,7 +156,10 @@ specification can be found on [http://www.relaxedjson.org](http://www.relaxedjso
 following example, `from_rjson()` parses and returns the structure defined in
 `$rjson`.
 
-    $structure = from_rjson($rjson);
+    $structure = from_rjson( $rjson, %options );
+
+`%options` can be used to change the behaviour of the parser.
+See [below](#object-oriented-parsing).
 
 ## Object-oriented parsing
 
@@ -173,7 +176,7 @@ Then call the parser's &lt;code>parse&lt;/code> method, passing in the RJSON str
 - $parser->extra\_tokens\_ok()
 
     `extra_tokens_ok()` sets/gets the `extra_tokens_ok` property. By default,
-    `extra_tokens_ok` is false.  If by `extra_tokens_ok` is true then the
+    `extra_tokens_ok` is false.  If `extra_tokens_ok` is true then the
     `multiple-structures` isn't triggered and the parser returns the first
     structure it finds.  So, for example, the following code would return undef and
     sets the `multiple-structures` error:
@@ -437,15 +440,23 @@ To parse in an object oriented manner, create the parser, then parse.
     `JSON::Relaxed::Parser->new()` creates a parser object. Its
     simplest and most common use is without any parameters.
 
-        my $parser = JSON::Relaxed::Parser->new();
+        my $parser = JSON::Relaxed::Parser->new( %options );
 
-    - **option:** unknown
+    Options:
+
+    - extra\_tokens\_ok
+
+        If `extra_tokens_ok` is true then the
+        `multiple-structures` isn't triggered and the parser returns the first
+        structure it finds.
+
+    - unknown
 
         The `unknown` option sets the character which creates the
         [unknown object](#json-relaxed-parser-token-unknown). The unknown object
         exists only for testing JSON::Relaxed. It has no purpose in production use.
 
-            my $parser = JSON::Relaxed::Parser->new(unknown=>'~');
+            my $parser = JSON::Relaxed::Parser->new( unknown => '~' );
 
 - Parser error codes
     - err\_id()

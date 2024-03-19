@@ -189,13 +189,16 @@ C<from_rjson()> only takes a single parameter, the string itself. So in the
 following example, C<from_rjson()> parses and returns the structure defined in
 C<$rjson>.
 
-    $structure = from_rjson($rjson);
+    $structure = from_rjson( $rjson, %options );
+
+C<%options> can be used to change the behaviour of the parser.
+See L<below|/"Object-oriented-parsing">.
 
 =cut
 
 sub from_rjson {
-    my ($raw) = @_;
-    my $parser = JSON::Relaxed::Parser->new();
+    my ( $raw, %options ) = @_;
+    my $parser = JSON::Relaxed::Parser->new(%options);
     return $parser->parse($raw);
 }
 #
@@ -223,7 +226,7 @@ B<Methods>
 =item * $parser->extra_tokens_ok()
 
 C<extra_tokens_ok()> sets/gets the C<extra_tokens_ok> property. By default,
-C<extra_tokens_ok> is false.  If by C<extra_tokens_ok> is true then the
+C<extra_tokens_ok> is false.  If C<extra_tokens_ok> is true then the
 C<multiple-structures> isn't triggered and the parser returns the first
 structure it finds.  So, for example, the following code would return undef and
 sets the C<multiple-structures> error:
@@ -635,17 +638,25 @@ To parse in an object oriented manner, create the parser, then parse.
 C<< JSON::Relaxed::Parser->new() >> creates a parser object. Its
 simplest and most common use is without any parameters.
 
-    my $parser = JSON::Relaxed::Parser->new();
+    my $parser = JSON::Relaxed::Parser->new( %options );
+
+Options:
 
 =over 4
 
-=item B<option:> unknown
+=item extra_tokens_ok
+
+If C<extra_tokens_ok> is true then the
+C<multiple-structures> isn't triggered and the parser returns the first
+structure it finds.
+
+=item unknown
 
 The C<unknown> option sets the character which creates the
 L<unknown object|/"JSON::Relaxed::Parser::Token::Unknown">. The unknown object
 exists only for testing JSON::Relaxed. It has no purpose in production use.
 
-    my $parser = JSON::Relaxed::Parser->new(unknown=>'~');
+    my $parser = JSON::Relaxed::Parser->new( unknown => '~' );
 
 =back
 
@@ -659,8 +670,15 @@ sub new {
     # println subname(); ##i
 
     # "unknown" object character
-    if (defined $opts{'unknown'}) {
-	$parser->{'unknown'} = $opts{'unknown'};
+    if ( exists $opts{unknown} ) {
+	$parser->{unknown} = delete $opts{unknown};
+    }
+    # Allow extra tokens.
+    if ( exists $opts{extra_tokens_ok} ) {
+	$parser->{extra_tokens_ok} = delete $opts{extra_tokens_ok};
+    }
+    if ( keys %opts ) {
+	Carp::croak('Unprocessed options: ' . join(" ", sort keys %opts));
     }
 
     # return
