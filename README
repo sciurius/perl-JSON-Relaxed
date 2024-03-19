@@ -14,6 +14,9 @@ IMPORTANT NOTICE: TAKEOVER
     cancelled, the old version requirement restored, and a new module
     (different name) will be released for future development.
 
+    For a look at the future, see:
+    https://github.com/sciurius/perl-JSON-Relaxed .
+
 SYNOPSIS
 
      my ($rjson, $hash, $parser);
