@@ -1,12 +1,14 @@
 Revision history for JSON-Relaxed
 
-0.000
+0.062
 
 	- Add object oriented accessors to error codes.
 	- Add options to from_json and RJSON::Relaxed::Parser->new.
 	- Use Test::More instead of Test::Most, 
-	- Remove t/test-lib (not used and identical to t/lib).
+	- Remove t/test-lib.pm (not used and identical to t/lib.pm).
+	- Remove t/lib.pm (not used).
 	- Fix issue #2.
+	- Fix escaped newlines not terminating // comments.
 
 0.061	2024-03-14
 
