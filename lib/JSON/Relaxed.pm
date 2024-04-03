@@ -6,7 +6,7 @@ use strict;
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.061';
+our $VERSION = '0.062';
 
 # global error messages
 our $err_id;

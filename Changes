@@ -1,6 +1,6 @@
 Revision history for JSON-Relaxed
 
-0.062
+0.062	2024-04-03
 
 	- Add object oriented accessors to error codes.
 	- Add options to from_json and RJSON::Relaxed::Parser->new.
