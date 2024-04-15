@@ -1,5 +1,9 @@
 Revision history for JSON-Relaxed
 
+0.063
+
+	- Improve detection of string join.
+
 0.062	2024-04-03
 
 	- Add object oriented accessors to error codes.
