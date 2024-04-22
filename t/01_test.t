@@ -23,7 +23,9 @@ BEGIN {
 # prepare for tests
 use Test::More;
 $ENV{'IDOCSDEV'} and die_on_fail();
-plan tests => 262;
+# plan tests => 262;
+# We no longer test comma's between elements.
+plan tests => 250;
 
 # load JSON::Relaxed
 require_ok( 'JSON::Relaxed' );
@@ -637,7 +639,7 @@ if (1) {
 #------------------------------------------------------------------------------
 ##= missing comma between array elements
 #
-if (1) {
+if (0) {
 	my $name = 'missing comma between array elements';
 
 	# colon in array

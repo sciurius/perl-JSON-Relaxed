@@ -1,7 +1,7 @@
 Revision history for JSON-Relaxed
 
 0.063
-
+	- Make commas between array elements optional.
 	- Improve detection of string join.
 
 0.062	2024-04-03

@@ -1,5 +1,4 @@
-# JSON::Relaxed
-*An extension of JSON that allows for better human-readability*
+# NAME
 
 ![Version](https://img.shields.io/github/v/release/sciurius/perl-JSON-Relaxed)
 ![GitHub issues](https://img.shields.io/github/issues/sciurius/perl-JSON-Relaxed)
@@ -147,6 +146,14 @@ specification can be found on [http://www.relaxedjson.org](http://www.relaxedjso
             a: 1,
             b: 2,
             c
+        }
+
+- commas are optional between objects pairs and array items
+
+        {
+          buy: [ milk eggs butter 'dog bones' ]
+          tasks: [ { name:exercise completed:false }
+                   { name:eat completed:true } ]
         }
 
 ## from\_rjson()
@@ -397,9 +404,12 @@ definitions of various structures.
 
     - End of line characters
 
+        End of line characters are used to detect the end of // comments.
         The `%newlines` hash defines the three ways a line can end in a RJSON
         document. Lines in Windows text files end with carriage-return newline
-        ("\\r\\n").  Lines in Unixish text files end with newline ("\\n"). Lines in some
+        ("\\r\\n").  Lines in Unixish text files end with newline ("\\n").
+        Note that an escaped newline also terminates a comment.
+        Lines in some
         operating systems end with just carriage returns ("\\n"). `%newlines` is
         defined as follows.
 
@@ -407,6 +417,7 @@ definitions of various structures.
                 "\r\n" => 1,
                 "\r" => 1,
                 "\n" => 1,
+                "\\\n" => 1,
             );
 
     - Boolean

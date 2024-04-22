@@ -170,6 +170,14 @@ C<b> is assigned 2, and C<c> is assigned undef:
 	c
     }
 
+=item * commas are optional between objects pairs and array items
+
+    {
+      buy: [ milk eggs butter 'dog bones' ]
+      tasks: [ { name:exercise completed:false }
+               { name:eat completed:true } ]
+    }
+
 =back
 
 =cut
@@ -1607,14 +1615,19 @@ sub build {
 	    # add the string to the array
 	    push @$rv, $next->as_perl();
 
-	    # check following token, which must be either a comma or
-	    # the closing brace
-	    if (@$tokens) {
+	    # Check following token.
+	    if ( @$tokens ) {
 		my $n2 = $tokens->[0] || '';
 
-		# the next element must be a comma or the closing brace,
-		# anything else is an error
-		unless  ( ($n2 eq ',') || ($n2 eq ']') ) {
+		# Spec say: Commas are optional between objects pairs
+		# and array items.
+		# The next element must be a comma or the closing brace,
+		# or a string or list.
+		# Anything else is an error.
+		unless ( $n2 eq ','
+			 || $n2 eq ']'
+			 || $parser->is_string($n2)
+			 || $parser->is_list_opener($n2) ) {
 		    return missing_comma($parser, $n2);
 		}
 	    }
