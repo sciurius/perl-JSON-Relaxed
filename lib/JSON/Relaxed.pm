@@ -1198,7 +1198,7 @@ sub tokenize {
 	}
 
 	# structural characters
-	elsif ($JSON::Relaxed::structural{$char}) {
+	elsif ( $JSON::Relaxed::structural{$char}) {
 	    push @tokens, $char;
 	}
 
@@ -1993,20 +1993,30 @@ sub new {
     # loop while not space or structural characters
     TOKEN_LOOP:
     while (@$chars) {
+	my $next = $chars->[0];
 	# if structural character, we're done
-	if ($JSON::Relaxed::structural{$chars->[0]})
+	if ($JSON::Relaxed::structural{$next})
 	    { last TOKEN_LOOP }
 
 	# if space character, we're done
-	if ($chars->[0] =~ m|\s+|s)
+	if ($next =~ m|\s+|s)
 	    { last TOKEN_LOOP }
 
 	# if opening of a comment, we're done
-	if ($parser->is_comment_opener($chars->[0]))
+	if ($parser->is_comment_opener($next))
 	    { last TOKEN_LOOP }
 
+	if ( $next eq '\u' && @$chars >= 4 ) {
+	    # Let's not be too relaxed -- require exactly 4 hexits.
+	    my $u = join('',@$chars[1..4]);
+	    if ( $u =~ /^[[:xdigit:]]+$/ ) {
+		splice( @$chars, 0, 4 );
+		$next = chr(hex($u));
+	    }
+	}
 	# add to raw string
-	$str->{'raw'} .= shift(@$chars);
+	$str->{'raw'} .= $next;
+	shift(@$chars);
     }
 
     # return
