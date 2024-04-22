@@ -25,7 +25,7 @@ use Test::More;
 $ENV{'IDOCSDEV'} and die_on_fail();
 # plan tests => 262;
 # We no longer test comma's between elements.
-plan tests => 250;
+plan tests => 251;
 
 # load JSON::Relaxed
 require_ok( 'JSON::Relaxed' );
@@ -509,14 +509,17 @@ if (1) {
 if (1) {
 	my $name = 'extra comma in array';
 
-	my $struct = JSON::Relaxed::Parser->new()->parse('[  , , ]');
+	my $struct = JSON::Relaxed::Parser->new()->parse('[ 0 , , ]');
 	error_from_rjson("$name: parse");
 
 	# should be array
 	isa_ok($struct, 'ARRAY', "$name: should be array");
 
 	# should be empty array
-	cmp_ok(scalar(@$struct), '==', 0, "$name: should be empty array");
+	cmp_ok(scalar(@$struct), '==', 1, "$name: should be one element array");
+
+	# should be empty array
+	cmp_ok($struct->[0], '==', 0, "$name: should be one element array");
 }
 #
 # extra comma in array

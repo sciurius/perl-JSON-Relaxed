@@ -89,14 +89,15 @@ RJSON supports JavaScript-like comments:
 
 =item * trailing commas
 
-Like Perl, RJSON allows treats commas as separators.  If nothing is before,
+Like Perl, RJSON allows treats commas as separators.  If nothing is
 after, or between commas, those commas are just ignored:
 
     [
-        , // nothing before this comma
         "data",
         , // nothing after this comma
     ]
+
+Note that the specification disallows loose commas at the beginning of a list.
 
 =item * single quotes, double quotes, no quotes
 
@@ -523,13 +524,15 @@ our %structural = (
 
 =item * Quotes
 
-The C<%quotes> hash defines the two types of quotes recognized by RJSON: single
-and double quotes. JSON only allows the use of double quotes to define strings.
-Relaxed also allows single quotes.  C<%quotes> is defined as follows.
+The C<%quotes> hash defines the types of quotes recognized by RJSON: single
+and double quotes, and backticks.
+JSON only allows the use of double quotes to define strings.
+C<%quotes> is defined as follows.
 
     our %quotes = (
         '"' => 1,
         "'" => 1,
+        "`" => 1,
     );
 
 =cut
@@ -538,6 +541,7 @@ Relaxed also allows single quotes.  C<%quotes> is defined as follows.
 our %quotes = (
     '"' => 1,
     "'" => 1,
+    "`" => 1,
 );
 
 =item * End of line characters
@@ -1606,8 +1610,9 @@ sub build {
 	    push @$rv, $object;
 	}
 
-	# comma: if we get to a comma at this point, do nothing with it
-	elsif ($next eq ',') {
+	# Comma: if we get to a comma at this point, and we have
+	# content, do nothing with it
+	elsif ( $next eq ',' && @$rv ) {
 	}
 
 	# if string, add it to the array

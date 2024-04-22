@@ -67,14 +67,15 @@ specification can be found on [http://www.relaxedjson.org](http://www.relaxedjso
 
 - trailing commas
 
-    Like Perl, RJSON allows treats commas as separators.  If nothing is before,
+    Like Perl, RJSON allows treats commas as separators.  If nothing is
     after, or between commas, those commas are just ignored:
 
         [
-            , // nothing before this comma
             "data",
             , // nothing after this comma
         ]
+
+    Note that the specification disallows loose commas at the beginning of a list.
 
 - single quotes, double quotes, no quotes
 
