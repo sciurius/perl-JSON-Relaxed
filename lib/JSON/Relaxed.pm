@@ -1851,8 +1851,7 @@ sub new {
 		    while ( $i < @$chars && $chars->[$i] =~ /^\s$/ ) {
 			$i++;
 		    }
-		    # if ( $chars->[$i] eq $str->{quote} ) {
-		    if ( $chars->[$i] =~ /['"]/ ) {
+		    if ( $quotes{$chars->[$i]} ) {
 			$str->{quote} = $chars->[$i];
 			splice( @$chars, 0, $i+1 );
 			next;
