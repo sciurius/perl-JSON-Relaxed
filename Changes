@@ -5,6 +5,7 @@ Revision history for JSON-Relaxed
 	- Disallow leading commas in a list (spec).
 	- Allow backticks for string quotes (spec).
 	- Improve detection of string join.
+	- Add test suite for regression tests.
 
 0.062	2024-04-03
 

@@ -10,7 +10,7 @@ note("JSON::Relaxed version $JSON::Relaxed::VERSION\n");
 
 my $json = <<'EOD';
 {
- buy: [milk, eggs, butter, `dog bones`,],
+ buy: [milk, eggs, butter , `dog bones`,],
  tasks: [ {name:exercise, completed:false,}, {name:eat, completed:true,}, ],
 }
 EOD
