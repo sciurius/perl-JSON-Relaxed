@@ -6,7 +6,7 @@ use strict;
 # use Debug::ShowStuff::ShowVar;
 
 # version
-our $VERSION = '0.063';
+our $VERSION = '0.063_02';
 
 # global error messages
 our $err_id;
@@ -20,9 +20,16 @@ our $err_msg;
 
 JSON::Relaxed -- An extension of JSON that allows for better human-readability.
 
+=head1 Relaxed JSON?
+
+There's been increasing support for the idea of expanding JSON to improve
+human-readability.  "Relaxed" JSON is a term that has been used to describe a
+JSON-ish format that has some features that JSON doesn't. An (official)
+specification can be found on L<RelaxedJSON.org|https://www.relaxedjson.org>.
+
 =head1 SYNOPSIS
 
-    use JSON::Relaxed qw(from_rjson);
+    use JSON::Relaxed;
 
     # Some raw RJSON code.
     my $rjson = <<'(RAW)';
@@ -43,11 +50,11 @@ JSON::Relaxed -- An extension of JSON that allows for better human-readability.
     (RAW)
 
     # Subroutine parsing.
-    my $hash = from_rjson($rjson);
+    my $hash = decode_rjson($rjson);
 
     # Object-oriented parsing.
-    my $parser = JSON::Relaxed::Parser->new();
-    $hash = $parser->parse($rjson);
+    my $parser = JSON::Relaxed->new();
+    $hash = $parser->decode($rjson);
 
 =head1 INSTALLATION
 
@@ -60,34 +67,25 @@ JSON::Relaxed can be installed with the usual routine:
 
 =head1 DESCRIPTION
 
-JSON::Relaxed is a lightweight parser and serializer for an extension of JSON
-called Relaxed JSON (RJSON).  The intent of RJSON is to provide a format that
-is more human-readable and human-editable than JSON. Most notably, RJSON allows
-the use of JavaScript-like comments. By doing so, configuration files and other
-human-edited files can include comments to indicate the intention of each
-configuration.
+JSON::Relaxed is a lightweight parser and serializer for an extension
+of JSON called Relaxed JSON (RJSON). The intent of RJSON is to provide
+a format that is more human-readable and human-editable than JSON.
+Most notably, RJSON allows the use of JavaScript-like comments. By
+doing so, configuration files and other human-edited files can include
+comments to indicate the intention of each configuration.
 
-JSON::Relaxed is currently only a parser that reads in RJSON code and produces
-a data structure. JSON::Relaxed does not currently encode data structures into
-JSON/RJSON. That feature is planned.
+JSON::Relaxed is currently only a parser that reads in RJSON code and
+produces a data structure. JSON::Relaxed does not currently encode
+data structures into JSON/RJSON.
 
-=head2 Why Relaxed JSON?
-
-There's been increasing support for the idea of expanding JSON to improve
-human-readability.  "Relaxed" JSON is a term that has been used to describe a
-JSON-ish format that has some features that JSON doesn't. An (official)
-specification can be found on L<http://www.relaxedjson.org>.
-
-=over 4
-
-=item * comments
+=head3 comments
 
 RJSON supports JavaScript-like comments:
 
     /* inline comments */
     // line-based comments
 
-=item * trailing commas
+=head3 trailing commas
 
 Like Perl, RJSON allows treats commas as separators.  If nothing is
 after, or between commas, those commas are just ignored:
@@ -99,7 +97,7 @@ after, or between commas, those commas are just ignored:
 
 Note that the specification disallows loose commas at the beginning of a list.
 
-=item * single quotes, double quotes, no quotes
+=head3 single quotes, double quotes, no quotes
 
 Strings can be quoted with either single or double quotes.  Space-less strings
 are also parsed as strings. So, the following data items are equivalent:
@@ -150,7 +148,7 @@ following are NOT the same:
 Because of this ambiguity, unquoted non-boolean strings should be considered
 sloppy and not something you do in polite company.
 
-=item * documents that are just a single string
+=head3 documents that are just a single string
 
 Early versions of JSON require that a JSON document contains either a single
 hash or a single array.  Later versions also allow a single string.  RJSON
@@ -158,7 +156,7 @@ follows that later rule, so the following is a valid RJSON document:
 
     "Hello world"
 
-=item * hash keys without values
+=head3 hash keys without values
 
 A hash in JSON can have a key that is followed by a comma or a closing C<}>
 without a specified value.  In that case the hash element is simply assigned
@@ -171,15 +169,13 @@ C<b> is assigned 2, and C<c> is assigned undef:
 	c
     }
 
-=item * commas are optional between objects pairs and array items
+=head3 commas are optional between objects pairs and array items
 
     {
       buy: [ milk eggs butter 'dog bones' ]
       tasks: [ { name:exercise completed:false }
                { name:eat completed:true } ]
     }
-
-=back
 
 =cut
 
@@ -188,30 +184,34 @@ C<b> is assigned 2, and C<c> is assigned undef:
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-# from_rjson
+# decode_rjson
 #
 
-=head2 from_rjson()
+=head2 decode_rjson()
 
-C<from_rjson()> is the simple way to quickly parse an RJSON string. Currently
-C<from_rjson()> only takes a single parameter, the string itself. So in the
-following example, C<from_rjson()> parses and returns the structure defined in
+C<decode_rjson()> is the simple way to quickly parse an RJSON string. Currently
+C<decode_rjson()> only takes a single parameter, the string itself. So in the
+following example, C<decode_rjson()> parses and returns the structure defined in
 C<$rjson>.
 
-    $structure = from_rjson( $rjson, %options );
+    $structure = decode_rjson( $rjson, %options );
 
 C<%options> can be used to change the behaviour of the parser.
 See L<below|/"Object-oriented-parsing">.
 
 =cut
 
-sub from_rjson {
+sub decode_rjson {
     my ( $raw, %options ) = @_;
     my $parser = JSON::Relaxed::Parser->new(%options);
-    return $parser->parse($raw);
+    return $parser->decode($raw);
 }
+
+# For compatibility with pre-0.50 api.
+*from_rjson = \&decode_rjson;
+
 #
-# from_rjson
+# decode_rjson
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -224,9 +224,9 @@ To parse using an object, create a C<JSON::Relaxed::Parser> object, like this:
 
     $parser = JSON::Relaxed::Parser->new();
 
-Then call the parser's <code>parse</code> method, passing in the RJSON string:
+Then call the parser's C<decode> method, passing in the RJSON string:
 
-    $structure = $parser->parse($rjson);
+    $structure = $parser->decode($rjson);
 
 B<Methods>
 
@@ -241,14 +241,14 @@ structure it finds.  So, for example, the following code would return undef and
 sets the C<multiple-structures> error:
 
     $parser = JSON::Relaxed::Parser->new();
-    $structure = $parser->parse('{"x":1} []');
+    $structure = $parser->decode('{"x":1} []');
 
 However, by setting C<multiple-structures> to true, a hash structure is
 returned, the extra code after that first hash is ignored, and no error is set:
 
     $parser = JSON::Relaxed::Parser->new();
     $parser->extra_tokens_ok(1);
-    $structure = $parser->parse('{"x":1} []');
+    $structure = $parser->decode('{"x":1} []');
 
 =item * $parser->err_id()
 
@@ -266,6 +266,34 @@ see L<below|/"Error-codes">.
 
 #
 # object-oriented parsing
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# new
+#
+
+=over
+
+=item * new
+
+C<< JSON::Relaxed->new() >> creates a parser object.
+It is short for calling
+
+    my $parser = JSON::Relaxed::Parser->new;
+
+See L</JSON::Relaxed::Parser>
+
+=back
+
+=cut
+
+sub new {
+    my ($class, %opts) = @_;
+    return JSON::Relaxed::Parser->new(%opts);
+}
+
+#
+# new
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -297,27 +325,27 @@ Following is a list of all error codes in JSON::Relaxed:
 
 =item * C<missing-parameter>
 
-The string to be parsed was not sent to $parser->parse(). For example:
+The string to be parsed was not sent to $parser->decode(). For example:
 
-    $parser->parse()
+    $parser->decode()
 
 =item * C<undefined-input>
 
 The string to be parsed is undefined. For example:
 
-    $parser->parse(undef)
+    $parser->decode(undef)
 
 =item * C<zero-length-input>
 
 The string to be parsed is zero-length. For example:
 
-    $parser->parse('')
+    $parser->decode('')
 
 =item * C<space-only-input>
 
 The string to be parsed has no content beside space characters. For example:
 
-    $parser->parse('   ')
+    $parser->decode('   ')
 
 =item * C<no-content>
 
@@ -325,23 +353,23 @@ The string to be parsed has no content. This error is slightly different than
 C<space-only-input> in that it is triggered when the input contains only
 comments, like this:
 
-    $parser->parse('/* whatever */')
+    $parser->decode('/* whatever */')
 
 =item * C<unclosed-inline-comment>
 
 A comment was started with /* but was never closed. For example:
 
-    $parser->parse('/*')
+    $parser->decode('/*')
 
 =item * C<invalid-structure-opening-character>
 
 The document opens with an invalid structural character like a comma or colon.
 The following examples would trigger this error.
 
-    $parser->parse(':')
-    $parser->parse(',')
-    $parser->parse('}')
-    $parser->parse(']')
+    $parser->decode(':')
+    $parser->decode(',')
+    $parser->decode('}')
+    $parser->decode(']')
 
 =item * C<multiple-structures>
 
@@ -349,9 +377,9 @@ The document has multiple structures. JSON and RJSON only allow a document to
 consist of a single hash, a single array, or a single string. The following
 examples would trigger this error.
 
-    $parse->parse('{}[]')
-    $parse->parse('{} "whatever"')
-    $parse->parse('"abc" "def"')
+    $parse->decode('{}[]')
+    $parse->decode('{} "whatever"')
+    $parse->decode('"abc" "def"')
 
 =item * C<unknown-token-after-key>
 
@@ -359,46 +387,46 @@ A hash key may only be followed by the closing hash brace or a colon. Anything
 else triggers C<unknown-token-after-key>. So, the following examples would
 trigger this error.
 
-    $parse->parse("{a [ }") }
-    $parse->parse("{a b") }
+    $parse->decode("{a [ }") }
+    $parse->decode("{a b") }
 
 =item * C<unknown-token-for-hash-key>
 
 The parser encountered something besides a string where a hash key should be.
 The following are examples of code that would trigger this error.
 
-    $parse->parse('{{}}')
-    $parse->parse('{[]}')
-    $parse->parse('{]}')
-    $parse->parse('{:}')
+    $parse->decode('{{}}')
+    $parse->decode('{[]}')
+    $parse->decode('{]}')
+    $parse->decode('{:}')
 
 =item * C<unclosed-hash-brace>
 
 A hash has an opening brace but no closing brace. For example:
 
-    $parse->parse('{x:1')
+    $parse->decode('{x:1')
 
 =item * C<unclosed-array-brace>
 
 An array has an opening brace but not a closing brace. For example:
 
-    $parse->parse('["x", "y"')
+    $parse->decode('["x", "y"')
 
 =item * C<unexpected-token-after-colon>
 
 In a hash, a colon must be followed by a value. Anything else triggers this
 error. For example:
 
-    $parse->parse('{"a":,}')
-    $parse->parse('{"a":}')
+    $parse->decode('{"a":,}')
+    $parse->decode('{"a":}')
 
 =item * C<missing-comma-between-array-elements>
 
 In an array, a comma must be followed by a value, another comma, or the closing
 array brace.  Anything else triggers this error. For example:
 
-    $parse->parse('[ "x" "y" ]')
-    $parse->parse('[ "x" : ]')
+    $parse->decode('[ "x" "y" ]')
+    $parse->decode('[ "x" : ]')
 
 =item * C<unknown-array-token>
 
@@ -410,8 +438,8 @@ shouldn't ever be triggered.  If it is please L<let me know|/AUTHOR>.
 
 This error is triggered when a quote isn't closed. For example:
 
-    $parse->parse("'whatever")
-    $parse->parse('"whatever') }
+    $parse->decode("'whatever")
+    $parse->decode('"whatever') }
 
 =back
 
@@ -425,7 +453,8 @@ This error is triggered when a quote isn't closed. For example:
 # export
 #
 use base 'Exporter';
-use vars qw[@EXPORT_OK %EXPORT_TAGS];
+use vars qw[@EXPORT @EXPORT_OK %EXPORT_TAGS];
+push @EXPORT, 'decode_rjson';
 push @EXPORT_OK, 'from_rjson';
 %EXPORT_TAGS = ('all' => [@EXPORT_OK]);
 #
@@ -636,7 +665,7 @@ customize how the string is parsed.
 To parse in an object oriented manner, create the parser, then parse.
 
     $parser = JSON::Relaxed::Parser->new();
-    $structure = $parser->parse($string);
+    $structure = $parser->decode($string);
 
 =over 4
 
@@ -937,23 +966,23 @@ sub is_comment_opener {
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-# parse
+# decode
 #
 
-=item parse()
+=item decode()
 
-C<parse()> is the method that does the work of parsing the RJSON string.
+C<decode()> is the method that does the work of parsing the RJSON string.
 It returns the data structure that is defined in the RJSON string.
 A typical usage would be as follows.
 
     my $parser = JSON::Relaxed::Parser->new();
-    my $structure = $parser->parse('["hello world"]');
+    my $structure = $parser->decode('["hello world"]');
 
-C<parse()> does not take any options.
+C<decode()> does not take any options.
 
 =cut
 
-sub parse {
+sub decode {
     my ($parser, $raw) = @_;
     my (@chars, @tokens, $rv);
 
@@ -968,7 +997,7 @@ sub parse {
     if (@_ < 2) {
 	return $parser->error(
 	    'missing-parameter',
-	    'the string to be parsed was not sent to $parser->parse()'
+	    'the string to be parsed was not sent to $parser->decode()'
 	)
     }
 
@@ -1022,8 +1051,12 @@ sub parse {
     # build structure
     $rv = $parser->structure(\@tokens, top=>1);
 }
+
+# For compatibility with pre-0.50.
+*parse = \&decode;
+
 #
-# parse
+# decode
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -1684,7 +1717,7 @@ sub missing_comma {
 # invalid_array_token
 #
 
-=item invalid_array_token)
+=item invalid_array_token()
 
 This static method build the C<unknown-array-token> error message.
 
@@ -1701,7 +1734,7 @@ sub invalid_array_token {
     );
 }
 #
-# invalid_array_token
+# invalid_array_token()
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -1735,14 +1768,111 @@ use strict;
 
 =head2 JSON::Relaxed::Parser::Token::String
 
-Base class . Nothing actually happens in this package, it's just a base class
-for JSON::Relaxed::Parser::Token::String::Quoted and
+Base class JSON::Relaxed::Parser::Token::String::Quoted and
 JSON::Relaxed::Parser::Token::String::Unquoted.
+
+=over 4
 
 =cut
 
 #
 # POD
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# decode_uescape()
+#
+
+=item * decode_uescape()
+
+Decodes unicode escapes like \u201D.
+Handles surrogates.
+
+Extension: Also handles \u{1d10e} escapes.
+
+=cut
+
+sub decode_uescape {
+    my ( $self, $chars ) = @_;
+    my $next = $chars->[0];
+
+    return unless $next eq '\u' && @$chars >= 5;
+
+    if ( $chars->[1] eq '{' ) { # extended
+	my $i = 2;
+	my $u = "";
+	while ( $i < @$chars ) {
+	    if ( $chars->[$i] =~ /[[:xdigit:]]/ ) {
+		$u .= $chars->[$i];
+		$i++;
+		next;
+	    }
+	    if ( $chars->[$i] eq '}' ) {
+		splice( @$chars, 0, $i );
+		return chr(hex($u));
+	    }
+	    last;
+	}
+	return;
+    }
+
+    # Let's not be too relaxed -- require exactly 4 hexits.
+    my $u = join('',@$chars[1..4]);
+    if ( $u =~ /^[[:xdigit:]]+$/ ) {
+	splice( @$chars, 0, 4 );
+	if ( $u =~ /^d[89ab][[:xdigit:]]{2}/i # utf-16 HI
+	     && @$chars >= 6 && $chars->[1] eq '\u' ) {
+	    my $utf16hi = $u;
+	    $u = join('',@$chars[2..5]);
+	    if ( $u =~ /^d[c-f][[:xdigit:]]{2}/i ) { # utf-16 LO
+		splice( @$chars, 0, 5 );
+		return $self->assemble_surrogate( $utf16hi, $u );
+	    }
+	    else {
+		return chr(hex($u));
+	    }
+	}
+	else {
+	    return chr(hex($u));
+	}
+    }
+
+    return;
+}
+
+#
+# decode_uescape
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# assemble_surrogate
+#
+
+=item * assemble_surrogate()
+
+Assembles a Unicode character out of a high and low surrogate.
+
+=cut
+
+sub assemble_surrogate {
+    my ( $self, $hi, $lo ) = @_;
+    pack('U*', 0x10000 + (hex($hi) - 0xD800) * 0x400 + (hex($lo) - 0xDC00) );
+}
+
+#
+# assemble_surrogate
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# closing POD
+#
+
+=back
+
+=cut
+
+#
+# closing POD
 #------------------------------------------------------------------------------
 
 #
@@ -1867,13 +1997,10 @@ sub new {
 		$next = $JSON::Relaxed::esc{$next};
 	    }
 	    # \uXXXX escapes.
-	    elsif ( $next eq 'u' && @$chars >= 4 ) {
-		# Let's not be too relaxed -- require exactly 4 hexits.
-		my $u = join('',@$chars[0..3]);
-		if ( $u =~ /^[[:xdigit:]]+$/ ) {
-		    splice( @$chars, 0, 4 );
-		    $next = chr(hex($u));
-		}
+	    elsif ( $next eq 'u' ) {
+		unshift( @$chars, '\u' );
+		$next = $str->decode_uescape($chars) // 'u';
+		shift(@$chars);
 	    }
 	}
 
@@ -1987,7 +2114,8 @@ sub new {
     # println subname(); ##i
 
     # initialize hash
-    $str->{'raw'} = $char;
+    $str->{'raw'} = "";
+    unshift( @$chars, $char );
 
     # loop while not space or structural characters
     TOKEN_LOOP:
@@ -2005,14 +2133,10 @@ sub new {
 	if ($parser->is_comment_opener($next))
 	    { last TOKEN_LOOP }
 
-	if ( $next eq '\u' && @$chars >= 4 ) {
-	    # Let's not be too relaxed -- require exactly 4 hexits.
-	    my $u = join('',@$chars[1..4]);
-	    if ( $u =~ /^[[:xdigit:]]+$/ ) {
-		splice( @$chars, 0, 4 );
-		$next = chr(hex($u));
-	    }
+	if ( $next eq '\u' ) {
+	    $next = $str->decode_uescape($chars) // 'u';
 	}
+
 	# add to raw string
 	$str->{'raw'} .= $next;
 	shift(@$chars);
@@ -2148,6 +2272,15 @@ sub new {
 1;
 
 __END__
+
+=head1 COMPATIBILITY WITH PRE-0.05 VERSION
+
+The old static methoc C<from_rjson> is renamed to C<decode_rjson>,
+to conform to many other modules of this kind.
+C<from_rjson> is kept as a synonym for C<decode_rjson>,
+
+For the same reason, the old parser method C<parse> is renamed to C<decode>.
+C<parse> is kept as a synonym for C<decode>.
 
 =head1 COPYRIGHT
 

@@ -48,6 +48,8 @@ my %w =
   TEST_REQUIRES  => {
     'Test::More'	=> 0,
     'FileHandle'	=> 0,
+    'File::LoadLines'	=> 1,
+    'JSON::PP'		=> 4,
     %prereq,
   },
 

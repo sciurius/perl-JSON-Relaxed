@@ -7,6 +7,7 @@ use JSON::Relaxed;
 use JSON::PP;
 use File::LoadLines;
 note("JSON::Relaxed version $JSON::Relaxed::VERSION\n");
+note("JSON::PP version $JSON::PP::VERSION\n");
 
 -d "t" && chdir("t");
 -d "regtests" && chdir("regtests");
@@ -15,7 +16,7 @@ my @files = sort glob("*.rjson");
 
 my $tests = 0;
 my $pp = JSON::PP->new;
-my $p = JSON::Relaxed::Parser->new;
+my $p = JSON::Relaxed->new;
 foreach my $rjsonfile ( @files ) {
 
     # Load the file.
@@ -26,7 +27,7 @@ foreach my $rjsonfile ( @files ) {
     next unless $rjsondata;
 
     # Parse it.
-    my $rjsonparsed = $p->parse($rjsondata);
+    my $rjsonparsed = $p->decode($rjsondata);
     ok( $rjsonparsed, "$rjsonfile - parse" ); $tests++;
 
     # Create the reference file if needed.
@@ -45,12 +46,13 @@ foreach my $rjsonfile ( @files ) {
     my $jsondata = loadlines( $jsonfile, $opts );
     ok( $jsondata, "$jsonfile  - load" ); $tests++;
     diag( "$jsonfile: " . $opts->{error} ) if $opts->{error};
-    my $jsonparsed = $pp->decode($jsondata);
+    my $jsonparsed = eval { $pp->decode($jsondata) };
+    diag( "$jsonfile: $@\n") unless defined $jsonparsed;
     # Verify.
     is_deeply( $rjsonparsed, $jsonparsed, "$rjsonfile - ok"); $tests++;
 
     # Parse ref data with RJSON and verify.
-    $rjsonparsed = $p->parse($jsondata);
+    $rjsonparsed = $p->decode($jsondata);
     diag("$jsonfile  - " . $p->err_msg) unless $jsonparsed;
     is_deeply( $rjsonparsed, $jsonparsed, "$jsonfile  - ok"); $tests++;
 }

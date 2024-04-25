@@ -1,11 +1,19 @@
 Revision history for JSON-Relaxed
 
+0.06x
+
+	- Rename from_json to decode_json and parse to decode.
+	  Keep old names as aliases.
+	- Add JSON::Relaxed::new as short for JSON::Relaxed;:Parser::new.
+
 0.063
 	- Make commas between array elements optional.
 	- Disallow leading commas in a list (spec).
 	- Allow backticks for string quotes (spec).
-	- Improve detection of string join.
+	- Improve detection of string join (ext).
 	- Add test suite for regression tests.
+	- Handle Unicode surrogates.
+	- Handle extended escape sequences (ext).
 
 0.062	2024-04-03
 
@@ -20,8 +28,7 @@ Revision history for JSON-Relaxed
 0.061	2024-03-14
 
 	- Add \uXXXXX escapes in strings. (Issue #3)
-	- Allow strings to be joined when separated with \ \n.
-	  (This is an extension to the speification.)
+	- Allow strings to be joined when separated with \ \n (ext).
 	- Rename test.t to 01_test.t.
 	- Add more tests.
 	- Docs and layout changes.

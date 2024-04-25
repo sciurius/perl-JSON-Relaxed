@@ -5,13 +5,13 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 ![Language Perl](https://img.shields.io/badge/Language-Perl-blue)
 
-*Note: This is a fork of the abandoned CPAN version by Miko
+ *Note: This is a fork of the abandoned CPAN version by Miko
 O'Sullivan. I forked it for my own purposes. If it is useful for you,
 enjoy and participate!*
 
 # SYNOPSIS
 
-    use JSON::Relaxed qw(from_rjson);
+    use JSON::Relaxed;
 
     # Some raw RJSON code.
     my $rjson = <<'(RAW)';
@@ -32,139 +32,132 @@ enjoy and participate!*
     (RAW)
 
     # Subroutine parsing.
-    my $hash = from_rjson($rjson);
+    my $hash = decode_rjson($rjson);
 
     # Object-oriented parsing.
-    my $parser = JSON::Relaxed::Parser->new();
-    $hash = $parser->parse($rjson);
+    my $parser = JSON::Relaxed->new();
+    $hash = $parser->decode($rjson);
 
 # DESCRIPTION
 
-JSON::Relaxed is a lightweight parser and serializer for an extension of JSON
-called Relaxed JSON (RJSON).  The intent of RJSON is to provide a format that
-is more human-readable and human-editable than JSON. Most notably, RJSON allows
-the use of JavaScript-like comments. By doing so, configuration files and other
-human-edited files can include comments to indicate the intention of each
-configuration.
+JSON::Relaxed is a lightweight parser and serializer for an extension
+of JSON called Relaxed JSON (RJSON). The intent of RJSON is to provide
+a format that is more human-readable and human-editable than JSON.
+Most notably, RJSON allows the use of JavaScript-like comments. By
+doing so, configuration files and other human-edited files can include
+comments to indicate the intention of each configuration.
 
-JSON::Relaxed is currently only a parser that reads in RJSON code and produces
-a data structure. JSON::Relaxed does not currently encode data structures into
-JSON/RJSON. That feature is planned.
+JSON::Relaxed is currently only a parser that reads in RJSON code and
+produces a data structure. JSON::Relaxed does not currently encode
+data structures into JSON/RJSON.
 
-## Why Relaxed JSON?
+### comments
 
-There's been increasing support for the idea of expanding JSON to improve
-human-readability.  "Relaxed" JSON is a term that has been used to describe a
-JSON-ish format that has some features that JSON doesn't. An (official)
-specification can be found on [http://www.relaxedjson.org](http://www.relaxedjson.org).
+RJSON supports JavaScript-like comments:
 
-- comments
+    /* inline comments */
+    // line-based comments
 
-    RJSON supports JavaScript-like comments:
+### trailing commas
 
-        /* inline comments */
-        // line-based comments
+Like Perl, RJSON allows treats commas as separators.  If nothing is
+after, or between commas, those commas are just ignored:
 
-- trailing commas
+    [
+        "data",
+        , // nothing after this comma
+    ]
 
-    Like Perl, RJSON allows treats commas as separators.  If nothing is
-    after, or between commas, those commas are just ignored:
+Note that the specification disallows loose commas at the beginning of a list.
 
-        [
-            "data",
-            , // nothing after this comma
-        ]
+### single quotes, double quotes, no quotes
 
-    Note that the specification disallows loose commas at the beginning of a list.
+Strings can be quoted with either single or double quotes.  Space-less strings
+are also parsed as strings. So, the following data items are equivalent:
 
-- single quotes, double quotes, no quotes
+    [
+        "Starflower",
+        'Starflower',
+        Starflower
+    ]
 
-    Strings can be quoted with either single or double quotes.  Space-less strings
-    are also parsed as strings. So, the following data items are equivalent:
+Quoted strings may contain escaped characters like `\t` for tab and
+`\n` for newline.
+Arbitrary unicode characters can be escaped with `\u` followed by
+four hexadecimal digits.
 
-        [
-            "Starflower",
-            'Starflower',
-            Starflower
-        ]
+As an extension to the specification `JSON::Relaxed` allows quoted
+strings may be split over multiple lines:
 
-    Quoted strings may contain escaped characters like `\t` for tab and
-    `\n` for newline.
-    Arbitrary unicode characters can be escaped with `\u` followed by
-    four hexadecimal digits.
+    [
+        "Star" \
+        "flower"
+    ]
 
-    As an extension to the specification `JSON::Relaxed` allows quoted
-    strings may be split over multiple lines:
+This produces a single string, `"Starflower"`.
+Note that this is different from
 
-        [
-            "Star" \
-            "flower"
-        ]
+    [
+        "Star \
+        flower"
+    ]
 
-    This produces a single string, `"Starflower"`.
-    Note that this is different from
+which produces `"Star \n    flower"` (where `\n` is a newline).
 
-        [
-            "Star \
-            flower"
-        ]
+Unquoted boolean values are still treated as boolean values, so the
+following are NOT the same:
 
-    which produces `"Star \n    flower"` (where `\n` is a newline).
+    [
+        "true",  // string
+        true,    // boolean true
 
-    Unquoted boolean values are still treated as boolean values, so the
-    following are NOT the same:
+        "false", // string
+        false,   // boolean false
 
-        [
-            "true",  // string
-            true,    // boolean true
+        "null", // string
+        null, // what Perl programmers call undef
+    ]
 
-            "false", // string
-            false,   // boolean false
+Because of this ambiguity, unquoted non-boolean strings should be considered
+sloppy and not something you do in polite company.
 
-            "null", // string
-            null, // what Perl programmers call undef
-        ]
+### documents that are just a single string
 
-    Because of this ambiguity, unquoted non-boolean strings should be considered
-    sloppy and not something you do in polite company.
+Early versions of JSON require that a JSON document contains either a single
+hash or a single array.  Later versions also allow a single string.  RJSON
+follows that later rule, so the following is a valid RJSON document:
 
-- documents that are just a single string
+    "Hello world"
 
-    Early versions of JSON require that a JSON document contains either a single
-    hash or a single array.  Later versions also allow a single string.  RJSON
-    follows that later rule, so the following is a valid RJSON document:
+### hash keys without values
 
-        "Hello world"
+A hash in JSON can have a key that is followed by a comma or a closing `}`
+without a specified value.  In that case the hash element is simply assigned
+the undefined value.  So, in the following example, `a` is assigned `1`,
+`b` is assigned 2, and `c` is assigned undef:
 
-- hash keys without values
+    {
+        a: 1,
+        b: 2,
+        c
+    }
 
-    A hash in JSON can have a key that is followed by a comma or a closing `}`
-    without a specified value.  In that case the hash element is simply assigned
-    the undefined value.  So, in the following example, `a` is assigned `1`,
-    `b` is assigned 2, and `c` is assigned undef:
+### commas are optional between objects pairs and array items
 
-        {
-            a: 1,
-            b: 2,
-            c
-        }
+    {
+      buy: [ milk eggs butter 'dog bones' ]
+      tasks: [ { name:exercise completed:false }
+               { name:eat completed:true } ]
+    }
 
-- commas are optional between objects pairs and array items
+## decode\_rjson()
 
-        {
-          buy: [ milk eggs butter 'dog bones' ]
-          tasks: [ { name:exercise completed:false }
-                   { name:eat completed:true } ]
-        }
-
-## from\_rjson()
-
-`from_rjson()` is the simple way to quickly parse an RJSON string. Currently
-`from_rjson()` only takes a single parameter, the string itself. So in the
-following example, `from_rjson()` parses and returns the structure defined in
+`decode_rjson()` is the simple way to quickly parse an RJSON string. Currently
+`decode_rjson()` only takes a single parameter, the string itself. So in the
+following example, `decode_rjson()` parses and returns the structure defined in
 `$rjson`.
 
-    $structure = from_rjson( $rjson, %options );
+    $structure = decode_rjson( $rjson, %options );
 
 `%options` can be used to change the behaviour of the parser.
 See [below](#object-oriented-parsing).
@@ -175,9 +168,9 @@ To parse using an object, create a `JSON::Relaxed::Parser` object, like this:
 
     $parser = JSON::Relaxed::Parser->new();
 
-Then call the parser's &lt;code>parse&lt;/code> method, passing in the RJSON string:
+Then call the parser's `decode` method, passing in the RJSON string:
 
-    $structure = $parser->parse($rjson);
+    $structure = $parser->decode($rjson);
 
 **Methods**
 
@@ -190,14 +183,14 @@ Then call the parser's &lt;code>parse&lt;/code> method, passing in the RJSON str
     sets the `multiple-structures` error:
 
         $parser = JSON::Relaxed::Parser->new();
-        $structure = $parser->parse('{"x":1} []');
+        $structure = $parser->decode('{"x":1} []');
 
     However, by setting `multiple-structures` to true, a hash structure is
     returned, the extra code after that first hash is ignored, and no error is set:
 
         $parser = JSON::Relaxed::Parser->new();
         $parser->extra_tokens_ok(1);
-        $structure = $parser->parse('{"x":1} []');
+        $structure = $parser->decode('{"x":1} []');
 
 - $parser->err\_id()
 
@@ -208,6 +201,15 @@ Then call the parser's &lt;code>parse&lt;/code> method, passing in the RJSON str
 
     A convenient way to access `$JSON::Relaxed::err_msg`,
     see [below](#error-codes).
+
+- new
+
+    `JSON::Relaxed->new()` creates a parser object.
+    It is short for calling
+
+        my $parser = JSON::Relaxed::Parser->new;
+
+    See ["JSON::Relaxed::Parser"](#json-relaxed-parser)
 
 ## Error codes
 
@@ -228,27 +230,27 @@ Following is a list of all error codes in JSON::Relaxed:
 
 - `missing-parameter`
 
-    The string to be parsed was not sent to $parser->parse(). For example:
+    The string to be parsed was not sent to $parser->decode(). For example:
 
-        $parser->parse()
+        $parser->decode()
 
 - `undefined-input`
 
     The string to be parsed is undefined. For example:
 
-        $parser->parse(undef)
+        $parser->decode(undef)
 
 - `zero-length-input`
 
     The string to be parsed is zero-length. For example:
 
-        $parser->parse('')
+        $parser->decode('')
 
 - `space-only-input`
 
     The string to be parsed has no content beside space characters. For example:
 
-        $parser->parse('   ')
+        $parser->decode('   ')
 
 - `no-content`
 
@@ -256,23 +258,23 @@ Following is a list of all error codes in JSON::Relaxed:
     `space-only-input` in that it is triggered when the input contains only
     comments, like this:
 
-        $parser->parse('/* whatever */')
+        $parser->decode('/* whatever */')
 
 - `unclosed-inline-comment`
 
     A comment was started with /\* but was never closed. For example:
 
-        $parser->parse('/*')
+        $parser->decode('/*')
 
 - `invalid-structure-opening-character`
 
     The document opens with an invalid structural character like a comma or colon.
     The following examples would trigger this error.
 
-        $parser->parse(':')
-        $parser->parse(',')
-        $parser->parse('}')
-        $parser->parse(']')
+        $parser->decode(':')
+        $parser->decode(',')
+        $parser->decode('}')
+        $parser->decode(']')
 
 - `multiple-structures`
 
@@ -280,9 +282,9 @@ Following is a list of all error codes in JSON::Relaxed:
     consist of a single hash, a single array, or a single string. The following
     examples would trigger this error.
 
-        $parse->parse('{}[]')
-        $parse->parse('{} "whatever"')
-        $parse->parse('"abc" "def"')
+        $parse->decode('{}[]')
+        $parse->decode('{} "whatever"')
+        $parse->decode('"abc" "def"')
 
 - `unknown-token-after-key`
 
@@ -290,46 +292,46 @@ Following is a list of all error codes in JSON::Relaxed:
     else triggers `unknown-token-after-key`. So, the following examples would
     trigger this error.
 
-        $parse->parse("{a [ }") }
-        $parse->parse("{a b") }
+        $parse->decode("{a [ }") }
+        $parse->decode("{a b") }
 
 - `unknown-token-for-hash-key`
 
     The parser encountered something besides a string where a hash key should be.
     The following are examples of code that would trigger this error.
 
-        $parse->parse('{{}}')
-        $parse->parse('{[]}')
-        $parse->parse('{]}')
-        $parse->parse('{:}')
+        $parse->decode('{{}}')
+        $parse->decode('{[]}')
+        $parse->decode('{]}')
+        $parse->decode('{:}')
 
 - `unclosed-hash-brace`
 
     A hash has an opening brace but no closing brace. For example:
 
-        $parse->parse('{x:1')
+        $parse->decode('{x:1')
 
 - `unclosed-array-brace`
 
     An array has an opening brace but not a closing brace. For example:
 
-        $parse->parse('["x", "y"')
+        $parse->decode('["x", "y"')
 
 - `unexpected-token-after-colon`
 
     In a hash, a colon must be followed by a value. Anything else triggers this
     error. For example:
 
-        $parse->parse('{"a":,}')
-        $parse->parse('{"a":}')
+        $parse->decode('{"a":,}')
+        $parse->decode('{"a":}')
 
 - `missing-comma-between-array-elements`
 
     In an array, a comma must be followed by a value, another comma, or the closing
     array brace.  Anything else triggers this error. For example:
 
-        $parse->parse('[ "x" "y" ]')
-        $parse->parse('[ "x" : ]')
+        $parse->decode('[ "x" "y" ]')
+        $parse->decode('[ "x" : ]')
 
 - `unknown-array-token`
 
@@ -341,8 +343,8 @@ Following is a list of all error codes in JSON::Relaxed:
 
     This error is triggered when a quote isn't closed. For example:
 
-        $parse->parse("'whatever")
-        $parse->parse('"whatever') }
+        $parse->decode("'whatever")
+        $parse->decode('"whatever') }
 
 # INTERNALS
 
@@ -394,13 +396,15 @@ definitions of various structures.
 
     - Quotes
 
-        The `%quotes` hash defines the two types of quotes recognized by RJSON: single
-        and double quotes. JSON only allows the use of double quotes to define strings.
-        Relaxed also allows single quotes.  `%quotes` is defined as follows.
+        The `%quotes` hash defines the types of quotes recognized by RJSON: single
+        and double quotes, and backticks.
+        JSON only allows the use of double quotes to define strings.
+        `%quotes` is defined as follows.
 
             our %quotes = (
                 '"' => 1,
                 "'" => 1,
+                "`" => 1,
             );
 
     - End of line characters
@@ -445,7 +449,7 @@ customize how the string is parsed.
 To parse in an object oriented manner, create the parser, then parse.
 
     $parser = JSON::Relaxed::Parser->new();
-    $structure = $parser->parse($string);
+    $structure = $parser->decode($string);
 
 - new
 
@@ -518,16 +522,16 @@ To parse in an object oriented manner, create the parser, then parse.
             /*
             //
 
-- parse()
+- decode()
 
-    `parse()` is the method that does the work of parsing the RJSON string.
+    `decode()` is the method that does the work of parsing the RJSON string.
     It returns the data structure that is defined in the RJSON string.
     A typical usage would be as follows.
 
         my $parser = JSON::Relaxed::Parser->new();
-        my $structure = $parser->parse('["hello world"]');
+        my $structure = $parser->decode('["hello world"]');
 
-    `parse()` does not take any options.
+    `decode()` does not take any options.
 
 - parse\_chars()
 
@@ -625,15 +629,25 @@ it is not instantiated.
     This static method build the `missing-comma-between-array-elements` error
     message.
 
-- invalid\_array\_token)
+- invalid\_array\_token()
 
     This static method build the `unknown-array-token` error message.
 
 ## JSON::Relaxed::Parser::Token::String
 
-Base class . Nothing actually happens in this package, it's just a base class
-for JSON::Relaxed::Parser::Token::String::Quoted and
+Base class JSON::Relaxed::Parser::Token::String::Quoted and
 JSON::Relaxed::Parser::Token::String::Unquoted.
+
+- decode\_uescape()
+
+    Decodes unicode escapes like \\u201D.
+    Handles surrogates.
+
+    Extension: Also handles \\u{1d10e} escapes.
+
+- assemble\_surrogate()
+
+    Assembles a Unicode character out of a high and low surrogate.
 
 ## JSON::Relaxed::Parser::Token::String::Quoted
 
@@ -751,6 +765,15 @@ For example, the following option sets the tilde (~) as an unknown object.
     my $parser = JSON::Relaxed::Parser->new(unknown=>'~');
 
 The "unknown" character must not be inside quotes or inside an unquoted string.
+
+# COMPATIBILITY WITH PRE-0.05 VERSION
+
+The old static methoc `from_rjson` is renamed to `decode_rjson`,
+to conform to many other modules of this kind.
+`from_rjson` is kept as a synonym for `decode_rjson`,
+
+For the same reason, the old parser method `parse` is renamed to `decode`.
+`parse` is kept as a synonym for `decode`.
 
 # COPYRIGHT
 
