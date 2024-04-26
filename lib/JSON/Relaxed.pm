@@ -119,7 +119,7 @@ C<decode_rjson> takes a single parameter, the string to be parsed.
 
 Optionally an additional hash with options can be passed
 to change the behaviour of the parser.
-See L<Object-oriented parsing|JSON::Parser::Relaxed/"Object-oriented-parsing">
+See L<Object-oriented parsing|JSON::Relaxed::Parser/"Object-oriented-parsing">
 in JSON::Relaxed::Parser.
 
     $structure = decode_rjson( $rjson, %options );
@@ -145,7 +145,7 @@ Then call the parser's C<decode> method, passing in the RJSON string:
 
     $structure = $parser->decode($rjson);
 
-For more details, see L<Object-oriented parsing|JSON::Parser::Relaxed/"Object-oriented-parsing"> in JSON::Parser::Relaxed.
+For more details, see L<Object-oriented parsing|JSON::Relaxed::Parser/"Object-oriented-parsing"> in JSON::Relaxed::Parser.
 
 =cut
 
@@ -165,6 +165,13 @@ BEGIN {
     *err_id  = \$JSON::Relaxed::Parser::err_id;
     *err_msg = \$JSON::Relaxed::Parser::err_msg;
 }
+
+=head1 ERROR HANDLING
+
+If the document cannot be parsed, JSON::Relaxed returns an undefined
+value and sets error indicators in $JSON::Relaxed::Parser::err_id and
+$JSON::Relaxed::Parser::err_msg. For a full list of error codes, see
+L<JSON::Relaxed::ErrorCodes>.
 
 =head1 COMPATIBILITY WITH PRE-0.05 VERSION
 

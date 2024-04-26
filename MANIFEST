@@ -11,6 +11,7 @@ t/40_comma.t
 t/99_regtest.t
 lib/JSON/Relaxed.pm
 lib/JSON/Relaxed/Parser.pm
+lib/JSON/Relaxed/ErrorCodes.pm
 t/regtests/site01.json
 t/regtests/site01.rjson
 t/regtests/site02.json
