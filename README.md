@@ -109,7 +109,7 @@ It is exported by default.
 
 Optionally an additional hash with options can be passed
 to change the behaviour of the parser.
-See [Object-oriented parsing](https://metacpan.org/pod/JSON::Parser::Relaxed#Object-oriented-parsing)
+See [Object-oriented parsing](https://metacpan.org/pod/JSON::Relaxed::Parser#Object-oriented-parsing)
 in JSON::Relaxed::Parser.
 
     $structure = decode_rjson( $rjson, %options );
@@ -126,7 +126,14 @@ Then call the parser's `decode` method, passing in the RJSON string:
 
     $structure = $parser->decode($rjson);
 
-For more details, see [Object-oriented parsing](https://metacpan.org/pod/JSON::Parser::Relaxed#Object-oriented-parsing) in JSON::Parser::Relaxed.
+For more details, see [Object-oriented parsing](https://metacpan.org/pod/JSON::Relaxed::Parser#Object-oriented-parsing) in JSON::Relaxed::Parser.
+
+# ERROR HANDLING
+
+If the document cannot be parsed, JSON::Relaxed returns an undefined
+value and sets error indicators in $JSON::Relaxed::Parser::err\_id and
+$JSON::Relaxed::Parser::err\_msg. For a full list of error codes, see
+[JSON::Relaxed::ErrorCodes](https://metacpan.org/pod/JSON::Relaxed::ErrorCodes).
 
 # COMPATIBILITY WITH PRE-0.05 VERSION
 
@@ -166,9 +173,3 @@ Original copyright 2014 by Miko O'Sullivan. All rights reserved. This
 program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself. This software comes with **NO
 WARRANTY** of any kind.
-
-# AUTHOR
-
-Johan Vromans `jv@cpan.org`
-
-Miko O'Sullivan `miko@idocs.com`, original version.
