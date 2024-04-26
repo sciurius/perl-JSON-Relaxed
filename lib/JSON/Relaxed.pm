@@ -25,7 +25,8 @@ eliminates the need to quote all keys and values.
 An (official) specification can be found on
 L<RelaxedJSON.org|https://www.relaxedjson.org>.
 
-I<Note that by definition every JSON document is also a valid RJSON document.>
+I<Note that by definition every valid JSON document is also a valid
+RJSON document.>
 
 =head1 SYNOPSIS
 

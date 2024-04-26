@@ -266,7 +266,7 @@ C<JSON::Relaxed::Parser::Token::String>.
 
 sub is_string {
     my ($parser, $object) = @_;
-    return UNIVERSAL::isa($object, 'JSON::Relaxed::Parser::Token::String');
+    return $object->isa('JSON::Relaxed::Parser::Token::String');
 }
 
 =head2 is_struct_char($object)
@@ -608,25 +608,38 @@ sub tokenize {
 	# quotes
 	# remove everything until next quote of same type
 	elsif ($quotes{$char}) {
-	    my $str = JSON::Relaxed::Parser::Token::String::Quoted->new($parser, $char, \@chars);
+	    my $str = $parser->quoted_string($char, \@chars);
 	    push @tokens, $str;
 	}
 
 	# "unknown" object string
 	elsif ($parser->is_unknown_char($char)) {
-	    my $unknown = JSON::Relaxed::Parser::Token::Unknown->new($char);
+	    my $unknown = $parser->unknown_char($char);
 	    push @tokens, $unknown;
 	}
 
 	# else it's an unquoted string
 	else {
-	    my $str = JSON::Relaxed::Parser::Token::String::Unquoted->new($parser, $char, \@chars);
+	    my $str = $parser->unquoted_string($char, \@chars);
 	    push @tokens, $str;
 	}
     }
 
     # return tokens
     return @tokens;
+}
+
+sub quoted_string {
+    my ( $self, $char, $chars ) = @_;
+    JSON::Relaxed::Parser::Token::String::Quoted->new($self, $char, $chars);
+}
+sub unquoted_string {
+    my ( $self, $char, $chars ) = @_;
+    JSON::Relaxed::Parser::Token::String::Unquoted->new($self, $char, $chars);
+}
+sub unknown_char {
+    my ( $self, $char ) = @_;
+    JSON::Relaxed::Parser::Token::Unknown->new($char);
 }
 
 =head2 structure( $tokens, %options )
@@ -661,12 +674,12 @@ sub structure {
 
     # opening of hash
     elsif ($opener eq '{') {
-	$rv = JSON::Relaxed::Parser::Structure::Hash->build($parser, $tokens);
+	$rv = $parser->build_hash($tokens);
     }
 
     # opening of array
     elsif ($opener eq '[') {
-	$rv = JSON::Relaxed::Parser::Structure::Array->build($parser, $tokens);
+	$rv = $parser->build_array($tokens);
     }
 
     # else invalid opening character
@@ -697,6 +710,15 @@ sub structure {
 
     # return
     return $rv;
+}
+
+sub build_hash {
+    my ( $self, $tokens ) = @_;
+    JSON::Relaxed::Parser::Structure::Hash->build($self, $tokens);
+}
+sub build_array {
+    my ( $self, $tokens ) = @_;
+    JSON::Relaxed::Parser::Structure::Array->build($self, $tokens);
 }
 
 sub invalid_token {
@@ -1259,7 +1281,7 @@ sub new {
     while (@$chars) {
 	my $next = $chars->[0];
 	# if structural character, we're done
-	if ($JSON::Relaxed::Parser::structural{$next})
+	if ($structural{$next})
 	    { last TOKEN_LOOP }
 
 	# if space character, we're done
@@ -1303,8 +1325,8 @@ sub as_perl {
     # unless options indicate to always return the value as a string, check it
     # the value is one of the boolean string
     unless ($opts{'always_string'}) {
-	if (exists $JSON::Relaxed::Parser::boolean{lc $rv}) {
-	    $rv = $JSON::Relaxed::Parser::boolean{lc $rv};
+	if (exists $boolean{lc $rv}) {
+	    $rv = $boolean{lc $rv};
 	}
     }
 
