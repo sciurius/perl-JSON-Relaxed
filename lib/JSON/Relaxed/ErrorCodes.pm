@@ -148,3 +148,24 @@ This error is triggered when a quote isn't closed. For example:
 #
 # error codes
 #------------------------------------------------------------------------------
+
+#! perl
+
+use v5.26;
+use Object::Pad;
+use utf8;
+
+class JSON::Relaxed::ErrorCodes;
+
+my %msg =
+  ( 'undefined-input' => 'the string to be parsed is undefined',
+    'unknown-array-token' => 'unexpected array token',
+  );
+
+method message :common ( $id, $aux = undef ) {
+    my $msg = $msg{$id} // ($id =~ s/-/ /gr);
+    $msg .= sprintf( " [got %s]", $aux->token ) if defined $aux;
+    $msg;
+}
+
+1;
