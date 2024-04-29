@@ -117,7 +117,6 @@ C<decode_rjson()> is the simple way to parse an RJSON string.
 It is exported by default.
 C<decode_rjson> takes a single parameter, the string to be parsed.
 
-
 Optionally an additional hash with options can be passed
 to change the behaviour of the parser.
 See L<Object-oriented parsing|JSON::Relaxed::Parser/"Object-oriented-parsing">
@@ -127,11 +126,19 @@ in JSON::Relaxed::Parser.
 
 =cut
 
+our $err_id;
+our $err_msg;
+
 sub decode_rjson {
     my ( $raw, %options ) = @_;
     use JSON::Relaxed::Parser;
     my $parser = JSON::Relaxed::Parser->new(%options);
-    return $parser->decode($raw);
+    my $res = $parser->decode($raw);
+    # Legacy.
+    $err_id  = $parser->err_id;
+    $err_msg = $parser->err_msg;
+
+    return $res;
 }
 
 =head1 METHODS
