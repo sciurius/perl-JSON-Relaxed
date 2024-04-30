@@ -1,58 +1,52 @@
-=head1 JSON::Relaxed Error Codes
+#! perl
 
-When JSON::Relaxed encounters a parsing error it returns C<undef> and sets two
-global variables: 
+use v5.26;
+use Object::Pad;
+use utf8;
+
+class JSON::Relaxed::ErrorCodes;
+
+=head1 JSON::Relaxed::ErrorCodes -- Error messages
+
+If the document cannot be parsed, JSON::Relaxed will normally throw an
+exception.
+
+In legacy mode, JSON::Relaxed returns an undefined
+value instead and sets the following error indicators:
 
 =over 4
 
 =item * $JSON::Relaxed::err_id
 
-C<$err_id> is a unique code for a specific error.
+A unique code for a specific error.
 
 =item * $JSON::Relaxed::err_msg
 
-C<$err_msg> is an English description of the code.  It would be cool to migrate
-towards multi-language support for C<$err_msg>.
+An English description of the error, including an indication where the
+error occurs.
+
+=back
 
 When using object-oriented mode, these can be easily retrieved using
 the parser methods err_id() and err_msg().
-
-=back
 
 Following is a list of all error codes in JSON::Relaxed:
 
 =over 4
 
-=item * C<missing-parameter>
+=item * C<missing-input>
 
-The string to be parsed was not sent to $parser->decode(). For example:
+No input was found. This can be caused by:
 
     $parser->decode()
-
-=item * C<undefined-input>
-
-The string to be parsed is undefined. For example:
-
     $parser->decode(undef)
 
-=item * C<zero-length-input>
+=item * C<empty-input>
 
-The string to be parsed is zero-length. For example:
+The string to be parsed has no content beside whitespace and comments.
 
     $parser->decode('')
-
-=item * C<space-only-input>
-
-The string to be parsed has no content beside space characters. For example:
-
     $parser->decode('   ')
-
-=item * C<no-content>
-
-The string to be parsed has no content. This error is slightly different than
-C<space-only-input> in that it is triggered when the input contains only
-comments, like this:
-
     $parser->decode('/* whatever */')
 
 =item * C<unclosed-inline-comment>
@@ -145,26 +139,44 @@ This error is triggered when a quote isn't closed. For example:
 
 =cut
 
-#
-# error codes
-#------------------------------------------------------------------------------
-
-#! perl
-
-use v5.26;
-use Object::Pad;
-use utf8;
-
-class JSON::Relaxed::ErrorCodes;
-
 my %msg =
-  ( 'undefined-input' => 'the string to be parsed is undefined',
+  ( 'missing-input' => 'the string to be parsed is empty or undefined',
     'unknown-array-token' => 'unexpected array token',
+     'empty-input' =>
+    'the string to be parsed has no content',
+    'unclosed-inline-comment' =>
+    'a comment was started with /* but was never closed',
+    'invalid-structure-opening-character' =>
+    'expected opening brace or opening bracket',
+    'multiple-structures' =>
+    'the string being parsed contains more than one structures',
+    'unknown-token-after-key' =>
+    'expected comma or closing brace after a hash key',
+    'unknown-token-for-hash-key' =>
+    'expected string, comma, or closing brace in a hash key',
+    'unclosed-hash-brace' =>
+    'missing closing brace for hash',
+    'unclosed-array-brace' =>
+    'missing closing brace for array',
+    'unexpected-token-after-colon' =>
+    'expected a value after a colon in a hash',
+    'missing-comma-between-array-elements' =>
+    'expected comma or closing array brace',
+    'unknown-array-token' =>
+    'unexpected token in array',
+    'unclosed-quote' =>
+    'missing closing quote for string'
   );
 
 method message :common ( $id, $aux = undef ) {
     my $msg = $msg{$id} // ($id =~ s/-/ /gr);
-    $msg .= sprintf( " [got %s]", $aux->token ) if defined $aux;
+    if ( $aux ) {
+	$msg .= sprintf( ", at character offset %d (before %s)",
+			 $aux->offset, $aux->as_string );
+    }
+    else {
+	$msg .= ", at end of string";
+    }
     $msg;
 }
 

@@ -41,7 +41,7 @@ my $json = <<'EOD';
 }
 EOD
 $p = JSON::Relaxed::Parser->new;
+$p->croak_on_error = 0;
 $res = $p->parse($json);
 ok( !defined($res), "no leading comma" );
-is($p->err_msg, "unexpected array token [got ,]", "leading comma error" );
-
+like($p->err_msg, qr/unexpected token in array/, "leading comma error" );

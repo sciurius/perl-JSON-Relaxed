@@ -13,6 +13,10 @@ field @tokens;			# string as tokens
 
 # Instance properties.
 field $extra_tokens_ok	   :mutator :param = undef;
+field $croak_on_error	   :mutator :param = 1;
+field $strict		   :mutator :param = 0;
+
+# For debugging only.
 field $unknown_token_char  :mutator :param = "~";
 
 # Error indicators.
@@ -22,16 +26,16 @@ field $err_msg		    :accessor;
 method decode( $str ) {
 
     $data = $str;
-    return $self->error('undefined-input')   unless defined $data;
-    return $self->error('zero-length-input') unless length $data;
-    return $self->error('space-only-input')  unless $data =~ /\S/;
+    return $self->error('missing-input')
+      unless defined $data && length $data;
 
     undef $err_id;
     undef $err_msg;
 
     $self->parse_chars;
     $self->tokenize;
-    return $self->error('no-content') unless @tokens;
+    return $self->error('empty-input') unless @tokens;
+
     $self->structure( top => 1 );
 }
 
@@ -64,10 +68,17 @@ method is_newline ($c) {
 
 # Quotes. Single, double and backtick.
 
-my $p_quotes = qw/["'`]/;
+my $p_quotes = qr/["'`]/;
 
 method is_quote ($c) {
     $c =~ /^$p_quotes$/;
+}
+
+# Numbers. A special case of unquoted strings.
+my $p_number = qr/[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?/;
+
+method is_number ($c) {
+    $c =~ /^$p_number$/;
 }
 
 method parse_chars() {
@@ -115,7 +126,7 @@ method tokenize() {
 		last if $self->is_newline($next);
 		$comment .= $next;
 	    }
-	    $self->addtok( $comment, 'LC', $off );
+	    #$self->addtok( $comment, 'LC', $off );
 	}
 
 	# /* */ - inline comments
@@ -128,7 +139,7 @@ method tokenize() {
 		$next = shift(@chars);
 		$offset += length($next);
 		if ( $next eq '*/' ) {
-		    $self->addtok( $comment, 'IC', $off );
+		    #$self->addtok( $comment, 'IC', $off );
 		    last;
 		}
 		else {
@@ -168,7 +179,7 @@ method tokenize() {
 	# else it's an unquoted string
 	else {
 	    my ( $str, $off ) = $self->unquoted_string( $char, \@chars );
-	    $self->addtok( $str, 'U', $offset );
+	    $self->addtok( $str, $self->is_number($str->raw) ? 'N' : 'U', $offset );
 	    $offset = $off;
 	}
     }
@@ -189,10 +200,6 @@ method structure( %opts ) {
 
     my $opener = $opts{opener} // shift(@tokens) // return;
     my $rv;
-
-    if ( $opener->is_comment ) {
-	return $self->structure;
-    }
 
     if ( $opener->is_string ) { # (un)quoted string
 	$rv = $opener->as_perl;
@@ -225,6 +232,7 @@ method error( $id, $aux = undef ) {
     $err_id = $id;
     $err_msg = JSON::Relaxed::ErrorCodes->message( $id, $aux );
 
+    die( $err_msg, "\n" ) if $croak_on_error;
     return;			# undef
 }
 
@@ -255,8 +263,6 @@ method build_hash() {
 	#	comma
 	#	string
 
-	next if $next->is_comment;
-
 	# if closing brace, return
 	return $rv if $next->token eq '}';
 
@@ -272,6 +278,7 @@ method build_hash() {
 
 	    # set key using string
 	    $key = $next->as_perl( always_string => 1 );
+	    $rv->{$key} = undef;
 
 	    # if anything follows the string
 	    last unless defined $t0;
@@ -329,9 +336,6 @@ method get_value() {
     elsif ($next->is_list_opener ) {
 	return $self->structure( opener => $next );
     }
-    elsif ( $next->is_comment ) {
-	return $self->get_value if @tokens;
-    }
 
     # at this point it's an illegal token
     return $self->error('unexpected-token-after-colon', $next );
@@ -345,8 +349,6 @@ method build_array() {
     # work through tokens until closing brace
     while ( @tokens ) {
 	my $next = shift(@tokens);
-
-	next if $next->is_comment;
 
 	# closing brace: we're done building this array
 	return $rv if $next->token eq ']';
@@ -371,10 +373,6 @@ method build_array() {
 	    # Check following token.
 	    if ( @tokens > 1 ) {
 		my $n2 = $tokens[0] || '';
-		while ( $n2->is_comment && @tokens ) {
-		    shift(@tokens);
-		    $n2 = $tokens[0] || '';
-		}
 		# Spec say: Commas are optional between objects pairs
 		# and array items.
 		# The next element must be a comma or the closing brace,
@@ -426,7 +424,11 @@ field $type   :accessor :param;
 field $offset :accessor :param;
 
 method is_string() {
-    $type =~ /[QU]/
+    $type =~ /[QUN]/
+}
+
+method is_number() {
+    $type eq 'N';
 }
 
 method is_list_opener() {
@@ -435,6 +437,7 @@ method is_list_opener() {
 
 method is_comment() {
     $type =~ /[LI]C/;
+    ...;			# catch accidental use
 }
 
 method as_perl( %options ) {
@@ -448,9 +451,21 @@ method _data_printer( $ddp ) {
 	$res .= $token->_data_printer($ddp);
     }
     else {
-	$res .= "\"$token\", $type";
+	$res .= "\"$token\"";
     }
+    $res .= ", $type";
     $res . ", $offset)";
+}
+
+method as_string {		# for messages
+    my $res = "";
+    if ( $self->is_string ) {
+	$res = '"' . ($token->raw =~ s/"/\\"/gr) . '"';
+    }
+    else {
+	$res .= "\"$token\"";
+    }
+    $res;
 }
 
 class JSON::Relaxed::Parser::Token::String
