@@ -2,6 +2,7 @@ Revision history for JSON-Relaxed
 
 0.06x
 
+	- Redesign/recode.
 	- Rename from_json to decode_json and parse to decode.
 	  Keep old names as aliases.
 	- Add JSON::Relaxed::new as short for JSON::Relaxed;:Parser::new.

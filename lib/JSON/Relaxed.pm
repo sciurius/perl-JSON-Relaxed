@@ -164,6 +164,13 @@ sub decode_rjson {
     return $res;
 }
 
+# Legacy.
+sub from_rjson {
+    my ( $raw, %options ) = @_;
+    $options{croak_on_error} //= 0;
+    decode_json( $raw, %options );
+}
+
 =head1 OBJECT-ORIENTED PARSING
 
 
@@ -259,9 +266,6 @@ BEGIN {
     our @EXPORT      = qw(decode_rjson);
     our @EXPORT_OK   = ( @EXPORT, qw(from_rjson) );
     our %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
-
-    # For compatibility with legacy api.
-    *from_rjson = \&decode_rjson;
 }
 
 =head1 ERROR HANDLING

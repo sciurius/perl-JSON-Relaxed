@@ -14,10 +14,8 @@ field @tokens;			# string as tokens
 # Instance properties.
 field $extra_tokens_ok	   :mutator :param = undef;
 field $croak_on_error	   :mutator :param = 1;
+field $croak_on_error_internal;
 field $strict		   :mutator :param = 0;
-
-# For debugging only.
-field $unknown_token_char  :mutator :param = "~";
 
 # Error indicators.
 field $err_id		    :accessor;
@@ -25,6 +23,7 @@ field $err_msg		    :accessor;
 
 method decode( $str ) {
 
+    $croak_on_error_internal = $croak_on_error;
     $data = $str;
     return $self->error('missing-input')
       unless defined $data && length $data;
@@ -40,7 +39,10 @@ method decode( $str ) {
 }
 
 # Legacy.
-*parse = \&decode;
+method parse( $str ) {
+    $croak_on_error_internal = 0;
+    $self->decode($str);
+}
 
 ################ Character classifiers ################
 
@@ -103,17 +105,15 @@ method chars() { \@chars }
 
 method tokenize() {
 
-    # create own array of characters
-    my @chars = @chars;
     @tokens = ();
-    my $offset = 0;
+    my $offset = 0;		# token offset in input
 
-    # loop through characters
+    # Loop through characters.
     while ( @chars ) {
 	my $char = shift(@chars);
 
 	# // - line comment
-	# remove everything up to and including the end of line
+	# Remove everything up to and including the end of line.
 	if ( $char eq '//' ) {
 	    my $comment = "";
 	    my $off = $offset;
@@ -130,7 +130,7 @@ method tokenize() {
 	}
 
 	# /* */ - inline comments
-	# remove everything until */
+	# Remove everything until */.
 	elsif ( $char eq '/*' ) {
 	    my $comment = "";
 	    my $off = $offset;
@@ -146,40 +146,39 @@ method tokenize() {
 		    $comment .= $next;
 		}
 	    }
-	    # if we get this far then the comment was never closed
+	    # If we get this far then the comment was never closed.
 	    return $self->error('unclosed-inline-comment')
 	      unless $next eq '*/';
 	}
 
-	# white space: ignore
+	# White space: ignore.
 	elsif ( $char !~ /\S/ ) {
 	    $offset += length($char);
 	}
 
-	# reserved characters
+	# Reserved characters.
 	elsif ( $self->is_reserved($char) ) {
 	    $self->addtok( $char, 'C', $offset );
 	    $offset += length($char);
 	}
 
-	# quotes
-	# remove everything until next quote of same type
+	# Quotes
+	# Remove everything until next quote of same type.
 	elsif ( $self->is_quote($char) ) {
-	    my ( $str, $off ) = $self->quoted_string( $char, \@chars );
+	    unshift( @chars, $char );
+	    my ( $str, $off ) = $self->quoted_string;
 	    $self->error('unclosed-quote') unless defined $str;
 	    $self->addtok( $str, 'Q', $offset );
 	    $offset = $off;
 	}
 
-	# "unknown" object string
-	elsif ( $char eq $unknown_token_char ) {
-	    $self->addtok( $unknown_token_char, '?', $offset );
-	}
-
-	# else it's an unquoted string
+	# Else it's an unquoted string.
 	else {
-	    my ( $str, $off ) = $self->unquoted_string( $char, \@chars );
-	    $self->addtok( $str, $self->is_number($str->raw) ? 'N' : 'U', $offset );
+	    unshift( @chars, $char );
+	    my ( $str, $off ) = $self->unquoted_string;
+	    $self->addtok( $str,
+			   $self->is_number($str->content) ? 'N' : 'U',
+			   $offset );
 	    $offset = $off;
 	}
     }
@@ -188,6 +187,7 @@ method tokenize() {
 # Accessor for @tokens,
 method tokens() { \@tokens }
 
+# Add a new token to @tokens.
 method addtok( $tok, $typ, $off ) {
 
     push( @tokens,
@@ -196,31 +196,33 @@ method addtok( $tok, $typ, $off ) {
 					     offset => $off ) );
 }
 
+# Build the result structure out of the tokens.
 method structure( %opts ) {
 
-    my $opener = $opts{opener} // shift(@tokens) // return;
+    my $this = shift(@tokens) // return;
     my $rv;
 
-    if ( $opener->is_string ) { # (un)quoted string
-	$rv = $opener->as_perl;
+    if ( $this->is_string ) { # (un)quoted string
+	$rv = $this->as_perl;
     }
-    elsif ( $opener->token eq '{' ) {
+    elsif ( $this->token eq '{' ) {
 	$rv = $self->build_hash;
     }
-    elsif ( $opener->token eq '[' ) {
+    elsif ( $this->token eq '[' ) {
 	$rv = $self->build_array;
     }
     else {
 	return $self->error( 'invalid-structure-opening-character',
-			     $opener );
+			     $this );
     }
 
+    # If this is the outer structure, then no tokens should remain.
     if ( $opts{top}
 	 && !$self->is_error
 	 && @tokens
 	 && !$extra_tokens_ok
        ) {
-	return $self->error('multiple-structures');
+	return $self->error( 'multiple-structures', $tokens[0] );
     }
 
     return $rv;
@@ -232,7 +234,7 @@ method error( $id, $aux = undef ) {
     $err_id = $id;
     $err_msg = JSON::Relaxed::ErrorCodes->message( $id, $aux );
 
-    die( $err_msg, "\n" ) if $croak_on_error;
+    die( $err_msg, "\n" ) if $croak_on_error_internal;
     return;			# undef
 }
 
@@ -257,167 +259,170 @@ method build_hash() {
     my $rv = {};
 
     while ( @tokens ) {
-	my $next = shift(@tokens);
-	# what is allowed after opening brace:
+	my $this = shift(@tokens);
+	# What is allowed after opening brace:
 	#	closing brace
 	#	comma
 	#	string
 
-	# if closing brace, return
-	return $rv if $next->token eq '}';
+	# If closing brace, return.
+	return $rv if $this->token eq '}';
 
-	# if comma, do nothing
-	next if $next->token eq ',';
+	# If comma, do nothing.
+	next if $this->token eq ',';
 
-	# string
+	# String
 	# If the token is a string then it is a key. The token after that
 	# should be a value.
-	if ( $next->is_string ) {
-	    my ( $key, $value, $t0 );
-	    $t0 = $tokens[0];
+	if ( $this->is_string ) {
+	    my ( $key, $value );
 
-	    # set key using string
-	    $key = $next->as_perl( always_string => 1 );
+	    # Set key using string.
+	    $key = $this->as_perl( always_string => 1 );
 	    $rv->{$key} = undef;
 
-	    # if anything follows the string
-	    last unless defined $t0;
+	    my $next = $tokens[0];
+	    # If anything follows the string.
+	    last unless defined $next;
 
-	    # a comma or closing brace is acceptable after a string
-	    next if $t0->token eq ','|| $t0->token eq '}';
+	    # A comma or closing brace is acceptable after a string.
+	    next if $next->token eq ',' || $next->token eq '}';
 
-	    # if next token is a colon then it should be followed by a value
-	    if ( $t0->token eq ':' ) {
-		# remove the colon
+	    # If next token is a colon then it should be followed by a value.
+	    if ( $next->token eq ':' ) {
+		# Step past the colon.
 		shift(@tokens);
 
-		# if at end of token array, exit loop
+		# If at end of token array, exit loop.
 		last unless @tokens;
 
-		# get hash value
+		# Get hash value.
 		$value = $self->get_value;
 
-		# if there is a global error, return undef
+		# If there is a global error, return undef.
 		return undef if $self->is_error;
 	    }
 
-	    # anything else is an error
+	    # Anything else is an error.
 	    else {
-		return $self->error('unknown-token-after-key', $t0 );
+		return $self->error('unknown-token-after-key', $next );
 	    }
 
-	    # set key and value in return hash
+	    # Set key and value in return hash.
 	    $rv->{$key} = $value;
 	}
 
-	# anything else is an error
+	# Anything else is an error.
 	else {
-	    return $self->error('unknown-token-for-hash-key', $next );
+	    return $self->error('unknown-token-for-hash-key', $this );
 	}
     }
 
-    # if we get this far then unclosed brace
+    # If we get this far then unclosed brace.
     return $self->error('unclosed-hash-brace');
 
 }
 
 method get_value() {
 
-    # get next token
-    my $next = shift(@tokens);
+    # Get token.
+    my $this = shift(@tokens);
 
-    # next token must be string, array, or hash
-    # string
-    if ( $next->is_string ) {
-	return $next->as_perl;
+    # Token must be string, array, or hash.
+
+    # String.
+    if ( $this->is_string ) {
+	return $this->as_perl;
     }
 
-    # token opens a hash
-    elsif ($next->is_list_opener ) {
-	return $self->structure( opener => $next );
+    # Token opens a hash or array.
+    elsif ( $this->is_list_opener ) {
+	unshift( @tokens, $this );
+	return $self->structure;
     }
 
-    # at this point it's an illegal token
-    return $self->error('unexpected-token-after-colon', $next );
+    # At this point it's an illegal token.
+    return $self->error('unexpected-token-after-colon', $this );
 }
 
 method build_array() {
 
     my $rv = [];
 
-    # build array
-    # work through tokens until closing brace
+    # Build array. Work through tokens until closing brace.
     while ( @tokens ) {
-	my $next = shift(@tokens);
+	my $this = shift(@tokens);
 
-	# closing brace: we're done building this array
-	return $rv if $next->token eq ']';
+	# Closing brace: we're done building this array.
+	return $rv if $this->token eq ']';
 
-	# opening of hash or array
-	if ( $next->is_list_opener ) {
-	    my $object = $self->structure( opener => $next );
+	# Opening brace of hash or array.
+	if ( $this->is_list_opener ) {
+	    unshift( @tokens, $this );
+	    my $object = $self->structure;
 	    defined($object) or return undef;
-	    push @$rv, $object;
+	    push( @$rv, $object );
 	}
 
 	# Comma: if we get to a comma at this point, and we have
-	# content, do nothing with it
-	elsif ( $next->token eq ',' && @$rv ) {
+	# content, do nothing with it.
+	elsif ( $this->token eq ',' && @$rv ) {
 	}
 
 	# if string, add it to the array
-	elsif ( $next->is_string ) {
+	elsif ( $this->is_string ) {
 	    # add the string to the array
-	    push @$rv, $next->as_perl();
+	    push( @$rv, $this->as_perl );
 
 	    # Check following token.
-	    if ( @tokens > 1 ) {
-		my $n2 = $tokens[0] || '';
+	    if ( @tokens ) {
+		my $next = $tokens[0] || '';
 		# Spec say: Commas are optional between objects pairs
 		# and array items.
 		# The next element must be a comma or the closing brace,
 		# or a string or list.
 		# Anything else is an error.
-		unless ( $n2->token eq ','
-			 || $n2->token eq ']'
-			 || $n2->is_string
-			 || $n2->is_list_opener ) {
+		unless ( $next->token eq ','
+			 || $next->token eq ']'
+			 || $next->is_string
+			 || $next->is_list_opener ) {
 		    return $self->error( 'missing_comma-between-array-elements',
-					 $n2 );
+					 $next );
 		}
 	    }
 	}
 
-	# else unkown object or character, so throw error
+	# Else unkown object or character, so throw error.
 	else {
-	    return $self->error( 'unknown-array-token', $next );
+	    return $self->error( 'unknown-array-token', $this );
 	}
     }
 
-    # if we get this far then unclosed brace
+    # If we get this far then unclosed brace.
     return $self->error('unclosed-array-brace');
 }
 
-method quoted_string( $char, $chars ) {
-    my $res = JSON::Relaxed::Parser::Token::String::Quoted->new( quote => $char )
-      ->build( $char, $chars );
+method quoted_string() {
+    my $res = JSON::Relaxed::Parser::Token::String::Quoted->new
+      ->build(\@chars);
     return unless defined $res;
-    return ( $res, length($data)-length(join('',@$chars)) );
+    return ( $res, length($data)-length(join('',@chars)) );
 }
 
-method unquoted_string( $char, $chars ) {
+method unquoted_string() {
     my $res = JSON::Relaxed::Parser::Token::String::Unquoted->new
-	->build( $char, $chars );
+	->build(\@chars);
     return unless defined $res;
-    return ( $res, length($data)-length(join('',@$chars)) );
+    return ( $res, length($data)-length(join('',@chars)) );
 }
 
 method is_comment_opener( $char ) {
     $char eq '//' || $char eq '/*';
 }
 
-class JSON::Relaxed::Parser::Token
-  :isa(JSON::Relaxed::Parser);
+################ Tokens ################
+
+class JSON::Relaxed::Parser::Token :isa(JSON::Relaxed::Parser);
 
 field $token  :accessor :param;
 field $type   :accessor :param;
@@ -440,12 +445,14 @@ method is_comment() {
     ...;			# catch accidental use
 }
 
-method as_perl( %options ) {
+method as_perl( %options ) {	# for values
+
     return $token->as_perl(%options) if $token->can("as_perl");
+    ...;			# reached?
     $token;
 }
 
-method _data_printer( $ddp ) {
+method _data_printer( $ddp ) {	# for DDP
     my $res = "Token(";
     if ( $self->is_string ) {
 	$res .= $token->_data_printer($ddp);
@@ -460,7 +467,7 @@ method _data_printer( $ddp ) {
 method as_string {		# for messages
     my $res = "";
     if ( $self->is_string ) {
-	$res = '"' . ($token->raw =~ s/"/\\"/gr) . '"';
+	$res = '"' . ($token->content =~ s/"/\\"/gr) . '"';
     }
     else {
 	$res .= "\"$token\"";
@@ -468,8 +475,9 @@ method as_string {		# for messages
     $res;
 }
 
-class JSON::Relaxed::Parser::Token::String
-  :isa(JSON::Relaxed::Parser);
+################ Strings ################
+
+class JSON::Relaxed::Parser::Token::String :isa(JSON::Relaxed::Parser);
 
 method decode_uescape( $chars ) {
     my $next = $chars->[0];
@@ -520,11 +528,13 @@ method decode_uescape( $chars ) {
     return;
 }
 
+################ Quoted Strings ################
+
 class JSON::Relaxed::Parser::Token::String::Quoted
   :isa(JSON::Relaxed::Parser::Token::String);
 
-field $quote :accessor :param;
-field $raw   :accessor;
+field $quote :accessor;
+field $content   :accessor;
 
 my %esc = (
     'b'   => "\b",    #  Backspace
@@ -535,15 +545,16 @@ my %esc = (
     'v'   => chr(11), #  Vertical tab
 );
 
-method build( $char, $chars ) {
+method build($chars) {
 
-    $raw = '';
+    $quote = shift(@$chars);
+    $content = '';
 
-    # loop through remaining characters until we find another quote
+    # Loop through remaining characters until we find another quote.
     while ( @$chars ) {
 	my $next = shift(@$chars);
 
-	# if this is the matching quote, we're done
+	# If this is the matching quote, we're done.
 	if ( $next eq $quote ) {
 	    # However, if the quote is followed by [ws] \ \n [ws]
 	    # and a new quote, append the new string.
@@ -581,29 +592,28 @@ method build( $char, $chars ) {
 	    }
 	}
 
-	# add to raw
-	$raw .= $next;
+	# Add to content.
+	$content .= $next;
     }
 
-    # if we get this far then we never found the closing quote
+    # If we get this far then we never found the closing quote.
     return;
 }
 
 method as_perl( %options ) {
-    $raw;
+    $content;
 }
-
-#use overload '""' => sub { $_[0]->quote . $_[0]->raw . $_[0]->quote };
-#use overload 'eq' => sub { 0 };
 
 method _data_printer( $ddp ) {
-    $quote . $raw . $quote;
+    $quote . $content . $quote;
 }
+
+################ Unquoted Strings ################
 
 class JSON::Relaxed::Parser::Token::String::Unquoted
   :isa(JSON::Relaxed::Parser::Token::String);
 
-field $raw   :accessor;
+field $content   :accessor;
 
 # Values for reserved strings.
 my %boolean = (
@@ -612,29 +622,29 @@ my %boolean = (
     false => 0,
 );
 
-method build( $char, $chars ) {
+method build($chars) {
 
-    $raw = "";
-    unshift( @$chars, $char );
+    $content = "";
 
-    # loop while not space or reserved characters
+    # Loop while not space or reserved characters.
     while ( @$chars ) {
 	my $next = $chars->[0];
-	# if reserved character, we're done
+
+	# If reserved character, we're done.
 	last if $self->is_reserved($next);
 
-	# if space character, we're done
+	# If space character, we're done.
 	last if $next !~ /\S/;
 
-	# if opening of a comment, we're done
+	# If opening of a comment, we're done.
 	last if $self->is_comment_opener($next);
 
 	if ( $next eq '\u' ) {
 	    $next = $self->decode_uescape($chars) // 'u';
 	}
 
-	# add to raw string
-	$raw .= $next;
+	# Add to content.
+	$content .= $next;
 	shift(@$chars);
     }
 
@@ -644,16 +654,15 @@ method build( $char, $chars ) {
 
 method as_perl( %options ) {
 
-    return $raw if $options{always_string};
-    exists( $boolean{lc $raw} ) ? $boolean{lc $raw} : $raw;
+    return $content if $options{always_string};
+    exists( $boolean{lc $content} ) ? $boolean{lc $content} : $content;
 
 }
-
-#use overload '""' => sub { ">" . $_[0]->raw . "<" };
-#use overload 'eq' => sub { 0 };
 
 method _data_printer( $ddp ) {
-    "<" . $raw . ">";
+    "<" . $content . ">";
 }
+
+################
 
 1;
