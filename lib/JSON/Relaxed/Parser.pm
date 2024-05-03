@@ -8,7 +8,7 @@ class JSON::Relaxed::Parser;
 
 # Instance data.
 field $data    :mutator;	# RJSON string being parser
-field @chars;			# string in character(duplets)
+field @pretoks;			# string in pre-tokens
 field @tokens;			# string as tokens
 
 # Instance properties.
@@ -32,6 +32,7 @@ method decode( $str ) {
     undef $err_msg;
 
     $self->parse_chars;
+    return if $self->is_error;
     $self->tokenize;
     return $self->error('empty-input') unless @tokens;
 
@@ -54,7 +55,7 @@ method parse( $str ) {
 #    ':'  delimiter between name and value of hash element
 #    ','  separator between elements in hashes and arrays
 
-my $p_reserved = qr/[,:{}\[\]]/;
+my $p_reserved = q<[,:{}\[\]]>;
 
 method is_reserved ($c) {
     $c =~ /^$p_reserved$/;
@@ -62,126 +63,158 @@ method is_reserved ($c) {
 
 # Newlines. CRLF (Windows), CR (MacOS) and newline (sane systems).
 
-my $p_newlines = qr/(?:\r\n|\r|\n|\\\n)/;
+my $p_newlines = q{(?:\r\n|\r|\n|\\\n)};
 
 method is_newline ($c) {
-    $c =~ /^$p_newlines$/;
+    $c =~ /^$p_newlines$/o;
 }
 
 # Quotes. Single, double and backtick.
 
-my $p_quotes = qr/["'`]/;
+my $p_quotes = q{["'`]};
 
 method is_quote ($c) {
-    $c =~ /^$p_quotes$/;
+    $c =~ /^$p_quotes$/o;
 }
 
 # Numbers. A special case of unquoted strings.
-my $p_number = qr/[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?/;
+my $p_number = q{[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?};
 
 method is_number ($c) {
-    $c =~ /^$p_number$/;
+    $c =~ /^$p_number$/o;
 }
 
-method parse_chars() {
+method parse_chars( $source = undef ) {
 
-    @chars = split( m/ (
-			   \\.		# escaped char
-		       |   $p_newlines	# CRLF, CR, newline
-		       |   \/\/		# line comment
-		       |   \/\*		# comment start
-		       |   \*\/		# comment end
-		       |   $p_reserved	# reserved chars
-		       |   .		# any char
-		       ) /sox, $data );
+    $data = $source if $source;	# for debugging
+    #$data =~ s/\r\n?/\n/g;
 
-    # remove empty strings
-    @chars = grep {length($_)} @chars;
+    @pretoks = split( m< (
+			   \\u[[:xdigit:]]{4}
+		       |   \\u\{[[:xdigit:]]+\}
+		       |   \\[^u]		# escaped char
+#		       |   $p_newlines	# CRLF, CR, newline
+#		       |   \r\n|\r|\n|\\\n # faster
+		       |   \n		# faster
+		       |   //		# line comment
+			   [^\n]* \n
+		       |   /\*		# comment start
+			   .*? \*/
+		       |   /\*		# comment start
+#		       |   \*/		# comment end
+#		       |   $p_reserved	# reserved chars
+		       |   [,:{}\[\]]   # faster
+		       |   "(?:\\.|.)*?"
+		       |   `(?:\\.|.)*?`
+		       |   '(?:\\.|.)*?'
+		       |   ['"`]
+#		       |   $p_number    # numbers
+#		       |   [+-]?\d*.?\d+(?:[Ee][+-]?\d+)?
+		       |   \s+		# whitespace
+#		       |   .		# any char
+		       ) >sox, $data );
+
+    # Remove empty strings.
+    @pretoks = grep { length($_) } @pretoks;
 
 }
 
-# Accessor for @chars.
-method chars() { \@chars }
+# Accessor for @pretoks.
+method pretoks() { \@pretoks }
 
-method tokenize() {
+method tokenize( $pretoks = undef ) {
 
     @tokens = ();
     my $offset = 0;		# token offset in input
+    @pretoks = @$pretoks if $pretoks;	# for debugging;
+
+    my $glue = 0;		# can glue strings
+    my $uq_open = 0;		# collecting pretokens for unquoted string
 
     # Loop through characters.
-    while ( @chars ) {
-	my $char = shift(@chars);
-
-	# // - line comment
-	# Remove everything up to and including the end of line.
-	if ( $char eq '//' ) {
-	    my $comment = "";
-	    my $off = $offset;
-	    $offset += length($char);
-	    while ( @chars ) {
-		my $next = shift(@chars);
-		$offset += length($next);
-
-		# if character is any of the end of line strings
-		last if $self->is_newline($next);
-		$comment .= $next;
-	    }
-	    #$self->addtok( $comment, 'LC', $off );
-	}
-
-	# /* */ - inline comments
-	# Remove everything until */.
-	elsif ( $char eq '/*' ) {
-	    my $comment = "";
-	    my $off = $offset;
-	    my $next = '';
-	    while (@chars) {
-		$next = shift(@chars);
-		$offset += length($next);
-		if ( $next eq '*/' ) {
-		    #$self->addtok( $comment, 'IC', $off );
-		    last;
-		}
-		else {
-		    $comment .= $next;
-		}
-	    }
-	    # If we get this far then the comment was never closed.
-	    return $self->error('unclosed-inline-comment')
-	      unless $next eq '*/';
-	}
+    while ( @pretoks ) {
+	my $pretok = shift(@pretoks);
 
 	# White space: ignore.
-	elsif ( $char !~ /\S/ ) {
-	    $offset += length($char);
+	if ( $pretok !~ /\S/ ) {
+	    $offset += length($pretok);
+	    $uq_open = 0;
+	    next;
+	}
+
+	if ( $pretok eq "\\\n" ) {
+	    $glue++;
+	    $uq_open = 0;
+	    $offset += length($pretok);
+	    next;
+	}
+
+	# Strings.
+	if ( $pretok =~ /^(["'`])(.*?)\1$/ ) {
+	    my ( $quote, $content ) = ( $1, $2 );
+	    if ( $glue > 1 ) {
+		$tokens[-1]->token->append($content);
+	    }
+	    else {
+		$self->addtok( JSON::Relaxed::Parser::Token::String::Quoted->new
+			       ( quote => $quote, content => $content),
+			       'Q', $offset );
+		$glue = 1;
+	    }
+	    $offset += length($pretok);
+	    $uq_open = 0;
+	    next;
+	}
+	$glue = 0;
+
+	# // and /* comment */
+	if ( $pretok =~ m<^/[*/].+>s ) {
+	    $offset += length($pretok);
+	    $uq_open = 0;
+	}
+
+	elsif ( $pretok eq '/*' ) {
+	    return $self->error('unclosed-inline-comment');
 	}
 
 	# Reserved characters.
-	elsif ( $self->is_reserved($char) ) {
-	    $self->addtok( $char, 'C', $offset );
-	    $offset += length($char);
+	elsif ( $self->is_reserved($pretok) ) {
+	    $self->addtok( $pretok, 'C', $offset );
+	    $offset += length($pretok);
+	    $uq_open = 0;
+	}
+
+
+	# Numbers.
+	elsif ( $pretok =~ /^[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?$/ ) {
+	    $self->addtok( JSON::Relaxed::Parser::Token::String::Unquoted->new
+			   ( content => $pretok ), 'N', $offset );
+	    $offset += length($pretok);
+	    $uq_open = 0;
 	}
 
 	# Quotes
-	# Remove everything until next quote of same type.
-	elsif ( $self->is_quote($char) ) {
-	    unshift( @chars, $char );
-	    my ( $str, $off ) = $self->quoted_string;
-	    $self->error('unclosed-quote') unless defined $str;
-	    $self->addtok( $str, 'Q', $offset );
-	    $offset = $off;
+	# Can't happen -- should be an encosed string.
+	elsif ( $self->is_quote($pretok) ) {
+	    $offset += length($pretok);
+	    $self->addtok( $pretok, '?', $offset );
+	    return $self->error('unclosed-quote', $tokens[-1] );
 	}
 
 	# Else it's an unquoted string.
 	else {
-	    unshift( @chars, $char );
-	    my ( $str, $off ) = $self->unquoted_string;
-	    $self->addtok( $str,
-			   $self->is_number($str->content) ? 'N' : 'U',
-			   $offset );
-	    $offset = $off;
+	    if ( $uq_open ) {
+		$tokens[-1]->token->append($pretok);
+	    }
+	    else {
+		$self->addtok( JSON::Relaxed::Parser::Token::String::Unquoted->new
+			       ( content => $pretok ), 'U', $offset );
+		$uq_open++;
+	    }
+	    $offset += length($pretok);
 	}
     }
+    @tokens;
 }
 
 # Accessor for @tokens,
@@ -199,28 +232,32 @@ method addtok( $tok, $typ, $off ) {
 # Build the result structure out of the tokens.
 method structure( %opts ) {
 
+    @tokens = @{$opts{tokens}} if $opts{tokens}; # for debugging
     my $this = shift(@tokens) // return;
     my $rv;
 
     if ( $this->is_string ) { # (un)quoted string
 	$rv = $this->as_perl;
     }
-    elsif ( $this->token eq '{' ) {
-	$rv = $self->build_hash;
-    }
-    elsif ( $this->token eq '[' ) {
-	$rv = $self->build_array;
-    }
     else {
-	return $self->error( 'invalid-structure-opening-character',
-			     $this );
+	my $t = $this->token;
+	if ( $t eq '{' ) {
+	    $rv = $self->build_hash;
+	}
+	elsif ( $t eq '[' ) {
+	    $rv = $self->build_array;
+	}
+	else {
+	    return $self->error( 'invalid-structure-opening-character',
+				 $this );
+	}
     }
 
     # If this is the outer structure, then no tokens should remain.
     if ( $opts{top}
-	 && !$self->is_error
 	 && @tokens
 	 && !$extra_tokens_ok
+	 && !$self->is_error
        ) {
 	return $self->error( 'multiple-structures', $tokens[0] );
     }
@@ -266,10 +303,11 @@ method build_hash() {
 	#	string
 
 	# If closing brace, return.
-	return $rv if $this->token eq '}';
+	my $t = $this->token;
+	return $rv if $t eq '}';
 
 	# If comma, do nothing.
-	next if $this->token eq ',';
+	next if $t eq ',';
 
 	# String
 	# If the token is a string then it is a key. The token after that
@@ -353,20 +391,21 @@ method build_array() {
     while ( @tokens ) {
 	my $this = shift(@tokens);
 
+	my $t = $this->token;
 	# Closing brace: we're done building this array.
-	return $rv if $this->token eq ']';
+	return $rv if $t eq ']';
+
+	# Comma: if we get to a comma at this point, and we have
+	# content, do nothing with it.
+	if ( $t eq ',' && @$rv ) {
+	}
 
 	# Opening brace of hash or array.
-	if ( $this->is_list_opener ) {
+	elsif ( $this->is_list_opener ) {
 	    unshift( @tokens, $this );
 	    my $object = $self->structure;
 	    defined($object) or return undef;
 	    push( @$rv, $object );
-	}
-
-	# Comma: if we get to a comma at this point, and we have
-	# content, do nothing with it.
-	elsif ( $this->token eq ',' && @$rv ) {
 	}
 
 	# if string, add it to the array
@@ -382,8 +421,7 @@ method build_array() {
 		# The next element must be a comma or the closing brace,
 		# or a string or list.
 		# Anything else is an error.
-		unless ( $next->token eq ','
-			 || $next->token eq ']'
+		unless ( $next->token =~ /^[,\]]$/
 			 || $next->is_string
 			 || $next->is_list_opener ) {
 		    return $self->error( 'missing_comma-between-array-elements',
@@ -402,22 +440,8 @@ method build_array() {
     return $self->error('unclosed-array-brace');
 }
 
-method quoted_string() {
-    my $res = JSON::Relaxed::Parser::Token::String::Quoted->new
-      ->build(\@chars);
-    return unless defined $res;
-    return ( $res, length($data)-length(join('',@chars)) );
-}
-
-method unquoted_string() {
-    my $res = JSON::Relaxed::Parser::Token::String::Unquoted->new
-	->build(\@chars);
-    return unless defined $res;
-    return ( $res, length($data)-length(join('',@chars)) );
-}
-
-method is_comment_opener( $char ) {
-    $char eq '//' || $char eq '/*';
+method is_comment_opener( $pretok ) {
+    $pretok eq '//' || $pretok eq '/*';
 }
 
 ################ Tokens ################
@@ -475,66 +499,79 @@ method as_string {		# for messages
     $res;
 }
 
+package JSON::Relaxed::Parser::XXToken;
+our @ISA = qw(JSON::Relaxed::Parser);
+
+sub new {
+    my ( $pkg, %opts ) = @_;
+    my $self = bless { %opts } => $pkg;
+    $self;
+}
+
+sub token  { $_[0]->{token}  }
+sub type   { $_[0]->{type}   }
+sub offset { $_[0]->{offset} }
+
+sub is_string { $_[0]->{type} =~ /[QUN]/  }
+sub is_number { $_[0]->{type} eq 'N' }
+sub is_list_opener { $_[0]->{type} eq 'C' && $_[0]->{token} =~ /[{\[]/ }
+sub is_comment { ... }
+sub as_perl {	# for values
+    return shift->{token}->as_perl(@_);
+}
+
+sub _data_printer {	# for DDP
+    my ( $self, $ddp ) = @_;
+    my $res = "Token(";
+    if ( $self->is_string ) {
+	$res .= $self->{token}->_data_printer($ddp);
+    }
+    else {
+	$res .= "\"".$self->{token}."\"";
+    }
+    $res .= ", " . $self->{type};
+    $res . ", " . $self->{offset} . ")";
+}
+
+sub as_string {		# for messages
+    my $res = "";
+    if ( $_[0]->is_string ) {
+	$res = '"' . ($_[0]->{token}->content =~ s/"/\\"/gr) . '"';
+    }
+    else {
+	$res .= "\"" . $_[0]->{token} . "\"";
+    }
+    $res;
+}
+
 ################ Strings ################
 
 class JSON::Relaxed::Parser::Token::String :isa(JSON::Relaxed::Parser);
 
-method decode_uescape( $chars ) {
-    my $next = $chars->[0];
+field $content		  :param;
+field $quote	:accessor :param = undef;
 
-    return unless $next eq '\u' && @$chars >= 5;
+ADJUST {
+    $content = $self->unescape($content) if defined($quote);
+};
 
-    if ( $chars->[1] eq '{' ) { # extended
-	my $i = 2;
-	my $u = "";
-	while ( $i < @$chars ) {
-	    if ( $chars->[$i] =~ /[[:xdigit:]]/ ) {
-		$u .= $chars->[$i];
-		$i++;
-		next;
-	    }
-	    if ( $chars->[$i] eq '}' ) {
-		splice( @$chars, 0, $i );
-		return chr(hex($u));
-	    }
-	    last;
-	}
-	return;
-    }
-
-    # Require exactly 4 hexits.
-    my $u = join('',@$chars[1..4]);
-    if ( $u =~ /^[[:xdigit:]]+$/ ) {
-	splice( @$chars, 0, 4 );
-	if ( $u =~ /^d[89ab][[:xdigit:]]{2}/i # utf-16 HI
-	     && @$chars >= 6 && $chars->[1] eq '\u' ) {
-	    my $hi = $u;
-	    $u = join('',@$chars[2..5]);
-	    if ( $u =~ /^d[c-f][[:xdigit:]]{2}/i ) { # utf-16 LO
-		splice( @$chars, 0, 5 );
-		return pack( 'U*',
-			     0x10000 + (hex($hi) - 0xD800) * 0x400
-			     + (hex($u) - 0xDC00) );
-	    }
-	    else {
-		return chr(hex($u));
-	    }
-	}
-	else {
-	    return chr(hex($u));
-	}
-    }
-
-    return;
+method append ($str) {
+    $str = $self->unescape($str) if defined $quote;
+    $content .= $str;
 }
 
-################ Quoted Strings ################
+method content {
+    defined($quote) ? $content : $self->unescape($content);
+}
 
-class JSON::Relaxed::Parser::Token::String::Quoted
-  :isa(JSON::Relaxed::Parser::Token::String);
-
-field $quote :accessor;
-field $content   :accessor;
+my $esc_quoted = qr/
+	       \\([tnrfb])				# $1 : one char
+	     | \\u\{([[:xdigit:]]+)\}			# $2 : \u{XX...}
+	     | \\u([Dd][89abAB][[:xdigit:]]{2})		# $3 : \uDXXX hi
+	       \\u([Dd][c-fC-F][[:xdigit:]]{2})		# $4 : \uDXXX lo
+	     | \\u([[:xdigit:]]{4})			# $5 : \uXXXX
+	     | \\?(.)					# $6
+	   /xs;
 
 my %esc = (
     'b'   => "\b",    #  Backspace
@@ -545,75 +582,46 @@ my %esc = (
     'v'   => chr(11), #  Vertical tab
 );
 
-method build($chars) {
+method unescape ($str) {
+    return $str unless $str =~ /\\/;
 
-    $quote = shift(@$chars);
-    $content = '';
-
-    # Loop through remaining characters until we find another quote.
-    while ( @$chars ) {
-	my $next = shift(@$chars);
-
-	# If this is the matching quote, we're done.
-	if ( $next eq $quote ) {
-	    # However, if the quote is followed by [ws] \ \n [ws]
-	    # and a new quote, append the new string.
-	    # TODO: This probably only works with newline, not CR or CRLF...
-	    if ( @$chars > 2 ) {
-		my $i = 0;
-		while ( $i < @$chars && $chars->[$i] =~ /^\s$/ ) {
-		    $i++;
-		}
-		if ( $chars->[$i] eq "\\\n" ) {
-		    $i++;
-		    while ( $i < @$chars && $chars->[$i] =~ /^\s$/ ) {
-			$i++;
-		    }
-		    if ( $self->is_quote($chars->[$i]) ) {
-			$quote = $chars->[$i];
-			splice( @$chars, 0, $i+1 );
-			next;
-		    }
-		}
-	    }
-	    return $self;
+    my $convert = sub {
+	if ( defined($1) ) {
+	    return defined($quote) ? $esc{$1} : $1;
 	}
+	defined($2) and return chr(hex($2));
+	defined($3) and return pack( 'U*',
+				     0x10000 + (hex($3) - 0xD800) * 0x400
+				     + (hex($4) - 0xDC00) );
+	defined($5) and return chr(hex($5));
+	defined($6) and return $6;
+	return '';
+    };
 
-	# Check if it's a special escape character.
-	if ( $next =~ s|^\\(.)|$1|s ) {
-	    if ( $esc{$next} ) {
-		$next = $esc{$next};
-	    }
-	    # \uXXXX escapes.
-	    elsif ( $next eq 'u' ) {
-		unshift( @$chars, '\u' );
-		$next = $self->decode_uescape($chars) // 'u';
-		shift(@$chars);
-	    }
-	}
-
-	# Add to content.
-	$content .= $next;
+    while( $str =~ s/\G$esc_quoted/$convert->()/gxse) {
+        last unless defined pos($str);
     }
 
-    # If we get this far then we never found the closing quote.
-    return;
+    return $str;
 }
 
+################ Quoted Strings ################
+
+class JSON::Relaxed::Parser::Token::String::Quoted
+  :isa(JSON::Relaxed::Parser::Token::String);
+
 method as_perl( %options ) {
-    $content;
+    $self->content;
 }
 
 method _data_printer( $ddp ) {
-    $quote . $content . $quote;
+    $self->quote . $self->content . $self->quote;
 }
 
 ################ Unquoted Strings ################
 
 class JSON::Relaxed::Parser::Token::String::Unquoted
   :isa(JSON::Relaxed::Parser::Token::String);
-
-field $content   :accessor;
 
 # Values for reserved strings.
 my %boolean = (
@@ -622,45 +630,15 @@ my %boolean = (
     false => 0,
 );
 
-method build($chars) {
-
-    $content = "";
-
-    # Loop while not space or reserved characters.
-    while ( @$chars ) {
-	my $next = $chars->[0];
-
-	# If reserved character, we're done.
-	last if $self->is_reserved($next);
-
-	# If space character, we're done.
-	last if $next !~ /\S/;
-
-	# If opening of a comment, we're done.
-	last if $self->is_comment_opener($next);
-
-	if ( $next eq '\u' ) {
-	    $next = $self->decode_uescape($chars) // 'u';
-	}
-
-	# Add to content.
-	$content .= $next;
-	shift(@$chars);
-    }
-
-    # return
-    return $self;
-}
-
 method as_perl( %options ) {
-
+    my $content = $self->content;
     return $content if $options{always_string};
     exists( $boolean{lc $content} ) ? $boolean{lc $content} : $content;
 
 }
 
 method _data_printer( $ddp ) {
-    "<" . $content . ">";
+    "<" . $self->content . ">";
 }
 
 ################

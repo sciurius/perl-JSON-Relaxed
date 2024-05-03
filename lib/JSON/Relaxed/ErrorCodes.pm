@@ -149,7 +149,7 @@ my %msg =
     'invalid-structure-opening-character' =>
     'expected opening brace or opening bracket',
     'multiple-structures' =>
-    'the string being parsed contains more than one structures',
+    'the string being parsed contains more than one structure',
     'unknown-token-after-key' =>
     'expected comma or closing brace after a hash key',
     'unknown-token-for-hash-key' =>
