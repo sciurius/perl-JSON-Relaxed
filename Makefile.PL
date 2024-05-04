@@ -7,6 +7,8 @@ exit 0 if $ENV{AUTOMATED_TESTING} && $] < 5.026000;
 
 use ExtUtils::MakeMaker 7.54;
 
+my $version = MM->parse_version('lib/JSON/Relaxed/Parser.pm');
+
 # For binaries/scripts.
 my @bins; # = qw( prog );
 
@@ -20,7 +22,7 @@ my %prereq =
 my %w =
 ( NAME                => 'JSON::Relaxed',
   AUTHOR              => 'Johan Vromans <jv@cpan.org>',
-  VERSION_FROM        => 'lib/JSON/Relaxed/Parser.pm',
+  VERSION             => $version,
   ABSTRACT_FROM       => 'lib/JSON/Relaxed.pm',
   LICENSE             => 'perl_5',
   PL_FILES            => {},
@@ -68,6 +70,25 @@ my %w =
         mailto => 'jv@cpan.org',
       },
     },
+     provides => {
+	 "JSON::Relaxed"
+		  => { file => "lib/JSON/Relaxed.pm",
+		       version => $version },
+	 "JSON::Relaxed::Parser"
+		  => { file => "lib/JSON/Relaxed/Parser.pm",
+		       version => $version },
+	 "JSON::Relaxed::ErrorCodes"
+		  => { file => "lib/JSON/Relaxed/ErrorCodes.pm",
+		       version => $version },
+     },
+     no_index => {
+         package => [
+	    "JSON::Relaxed::Parser::Token",
+	    "JSON::Relaxed::Parser::String",
+	    "JSON::Relaxed::Parser::String::Quoted",
+	    "JSON::Relaxed::Parser::String::Unquoted",
+	 ],
+     }
   },
 );
 
