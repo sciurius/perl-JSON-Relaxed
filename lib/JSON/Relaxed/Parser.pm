@@ -4,6 +4,10 @@ use v5.26;
 use Object::Pad;
 use utf8;
 
+package JSON::Relaxed::Parser;
+
+our $VERSION = "0.090";
+
 class JSON::Relaxed::Parser;
 
 # Instance data.
@@ -20,6 +24,7 @@ field $strict		   :mutator :param = 0;
 # Error indicators.
 field $err_id		    :accessor;
 field $err_msg		    :accessor;
+field $err_pos		    :accessor;
 
 method decode( $str ) {
 
@@ -29,6 +34,7 @@ method decode( $str ) {
       unless defined $data && length $data;
 
     undef $err_id;
+    $err_pos = -1;
     undef $err_msg;
 
     $self->parse_chars;
@@ -80,38 +86,27 @@ method is_quote ($c) {
 # Numbers. A special case of unquoted strings.
 my $p_number = q{[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?};
 
-method is_number ($c) {
-    $c =~ /^$p_number$/o;
-}
-
 method parse_chars( $source = undef ) {
 
     $data = $source if $source;	# for debugging
-    #$data =~ s/\r\n?/\n/g;
 
     @pretoks = split( m< (
 			   \\u[[:xdigit:]]{4}
 		       |   \\u\{[[:xdigit:]]+\}
 		       |   \\[^u]		# escaped char
-#		       |   $p_newlines	# CRLF, CR, newline
-#		       |   \r\n|\r|\n|\\\n # faster
 		       |   \n		# faster
 		       |   //		# line comment
 			   [^\n]* \n
 		       |   /\*		# comment start
 			   .*? \*/
 		       |   /\*		# comment start
-#		       |   \*/		# comment end
 #		       |   $p_reserved	# reserved chars
 		       |   [,:{}\[\]]   # faster
-		       |   "(?:\\.|.)*?"
-		       |   `(?:\\.|.)*?`
-		       |   '(?:\\.|.)*?'
-		       |   ['"`]
-#		       |   $p_number    # numbers
-#		       |   [+-]?\d*.?\d+(?:[Ee][+-]?\d+)?
+		       |   "(?:\\.|.)*?"    # "string"
+		       |   `(?:\\.|.)*?`    # `string`
+		       |   '(?:\\.|.)*?'    # 'string'
+		       |   ['"`]	# stringquote
 		       |   \s+		# whitespace
-#		       |   .		# any char
 		       ) >sox, $data );
 
     # Remove empty strings.
@@ -156,7 +151,7 @@ method tokenize( $pretoks = undef ) {
 		$tokens[-1]->token->append($content);
 	    }
 	    else {
-		$self->addtok( JSON::Relaxed::Parser::Token::String::Quoted->new
+		$self->addtok( JSON::Relaxed::Parser::String::Quoted->new
 			       ( quote => $quote, content => $content),
 			       'Q', $offset );
 		$glue = 1;
@@ -186,8 +181,8 @@ method tokenize( $pretoks = undef ) {
 
 
 	# Numbers.
-	elsif ( $pretok =~ /^[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?$/ ) {
-	    $self->addtok( JSON::Relaxed::Parser::Token::String::Unquoted->new
+	elsif ( $pretok =~ /^$p_number$/ ) {
+	    $self->addtok( JSON::Relaxed::Parser::String::Unquoted->new
 			   ( content => $pretok ), 'N', $offset );
 	    $offset += length($pretok);
 	    $uq_open = 0;
@@ -207,7 +202,7 @@ method tokenize( $pretoks = undef ) {
 		$tokens[-1]->token->append($pretok);
 	    }
 	    else {
-		$self->addtok( JSON::Relaxed::Parser::Token::String::Unquoted->new
+		$self->addtok( JSON::Relaxed::Parser::String::Unquoted->new
 			       ( content => $pretok ), 'U', $offset );
 		$uq_open++;
 	    }
@@ -269,6 +264,7 @@ method structure( %opts ) {
 method error( $id, $aux = undef ) {
     require JSON::Relaxed::ErrorCodes;
     $err_id = $id;
+    $err_pos = $aux ? $aux->offset : -1;
     $err_msg = JSON::Relaxed::ErrorCodes->message( $id, $aux );
 
     die( $err_msg, "\n" ) if $croak_on_error_internal;
@@ -456,17 +452,8 @@ method is_string() {
     $type =~ /[QUN]/
 }
 
-method is_number() {
-    $type eq 'N';
-}
-
 method is_list_opener() {
     $type eq 'C' && $token =~ /[{\[]/;
-}
-
-method is_comment() {
-    $type =~ /[LI]C/;
-    ...;			# catch accidental use
 }
 
 method as_perl( %options ) {	# for values
@@ -499,6 +486,8 @@ method as_string {		# for messages
     $res;
 }
 
+=begin heavily_optimized_alternative
+
 package JSON::Relaxed::Parser::XXToken;
 our @ISA = qw(JSON::Relaxed::Parser);
 
@@ -513,9 +502,7 @@ sub type   { $_[0]->{type}   }
 sub offset { $_[0]->{offset} }
 
 sub is_string { $_[0]->{type} =~ /[QUN]/  }
-sub is_number { $_[0]->{type} eq 'N' }
 sub is_list_opener { $_[0]->{type} eq 'C' && $_[0]->{token} =~ /[{\[]/ }
-sub is_comment { ... }
 sub as_perl {	# for values
     return shift->{token}->as_perl(@_);
 }
@@ -534,22 +521,26 @@ sub _data_printer {	# for DDP
 }
 
 sub as_string {		# for messages
-    my $res = "";
     if ( $_[0]->is_string ) {
-	$res = '"' . ($_[0]->{token}->content =~ s/"/\\"/gr) . '"';
+	return '"' . ($_[0]->{token}->content =~ s/"/\\"/gr) . '"';
     }
-    else {
-	$res .= "\"" . $_[0]->{token} . "\"";
-    }
-    $res;
+    "\"" . $_[0]->{token} . "\"";
 }
+
+=cut
 
 ################ Strings ################
 
-class JSON::Relaxed::Parser::Token::String :isa(JSON::Relaxed::Parser);
+class JSON::Relaxed::Parser::String :isa(JSON::Relaxed::Parser);
 
 field $content		  :param;
 field $quote	:accessor :param = undef;
+
+# Quoted strings are assembled from complete substrings, so escape
+# processing is done on the substrings. This prevents ugly things
+# when unicode escapes are split across substrings.
+# Unquotes strings are collected token by token, so escape processing
+# can only be done on the complete string (on output).
 
 ADJUST {
     $content = $self->unescape($content) if defined($quote);
@@ -564,6 +555,7 @@ method content {
     defined($quote) ? $content : $self->unescape($content);
 }
 
+# One regexp to match them all...
 my $esc_quoted = qr/
 	       \\([tnrfb])				# $1 : one char
 	     | \\u\{([[:xdigit:]]+)\}			# $2 : \u{XX...}
@@ -573,6 +565,7 @@ my $esc_quoted = qr/
 	     | \\?(.)					# $6
 	   /xs;
 
+# Special escapes (quoted strings only).
 my %esc = (
     'b'   => "\b",    #  Backspace
     'f'   => "\f",    #  Form feed
@@ -586,15 +579,25 @@ method unescape ($str) {
     return $str unless $str =~ /\\/;
 
     my $convert = sub {
+	# Specials. Only for quoted strings.
 	if ( defined($1) ) {
 	    return defined($quote) ? $esc{$1} : $1;
 	}
+
+	# Extended \u{XXX} character.
 	defined($2) and return chr(hex($2));
+
+	# Pair of surrogates.
 	defined($3) and return pack( 'U*',
 				     0x10000 + (hex($3) - 0xD800) * 0x400
 				     + (hex($4) - 0xDC00) );
+
+	# Standard \uXXXX character.
 	defined($5) and return chr(hex($5));
+
+	# Anything else.
 	defined($6) and return $6;
+
 	return '';
     };
 
@@ -607,8 +610,8 @@ method unescape ($str) {
 
 ################ Quoted Strings ################
 
-class JSON::Relaxed::Parser::Token::String::Quoted
-  :isa(JSON::Relaxed::Parser::Token::String);
+class JSON::Relaxed::Parser::String::Quoted
+  :isa(JSON::Relaxed::Parser::String);
 
 method as_perl( %options ) {
     $self->content;
@@ -620,8 +623,8 @@ method _data_printer( $ddp ) {
 
 ################ Unquoted Strings ################
 
-class JSON::Relaxed::Parser::Token::String::Unquoted
-  :isa(JSON::Relaxed::Parser::Token::String);
+class JSON::Relaxed::Parser::String::Unquoted
+  :isa(JSON::Relaxed::Parser::String);
 
 # Values for reserved strings.
 my %boolean = (
@@ -630,6 +633,8 @@ my %boolean = (
     false => 0,
 );
 
+# If the option always_string is set, bypass the reserved strings.
+# This is used for hash keys.
 method as_perl( %options ) {
     my $content = $self->content;
     return $content if $options{always_string};

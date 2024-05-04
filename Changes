@@ -1,13 +1,15 @@
 Revision history for JSON-Relaxed
 
-0.06x
+0.090
 
 	- Redesign/recode.
 	- Rename from_json to decode_json and parse to decode.
 	  Keep old names as aliases.
+	- Throw exceptions in case of error (when using new api).
+	- Improved error messages, with error location info.
+	- All user documentation in JSON::Relaxed, error documentation in
+	  JSON::Relaxed::ErrorCodes.
 	- Add JSON::Relaxed::new as short for JSON::Relaxed;:Parser::new.
-
-0.063
 	- Make commas between array elements optional.
 	- Disallow leading commas in a list (spec).
 	- Allow backticks for string quotes (spec).

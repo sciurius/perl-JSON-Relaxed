@@ -1,12 +1,11 @@
 #! perl
 
 use v5.26;
-use Object::Pad;
 use utf8;
 
 package JSON::Relaxed;
 
-our $VERSION = '0.063_02';
+use JSON::Relaxed::Parser; our $VERSION = $JSON::Relaxed::Parser::VERSION;
 
 =head1 NAME
 
@@ -225,6 +224,11 @@ Fetches the error id of the last error, if any.
 Error ids are simple short strings, like C<"multiple-structures">.
 
 For a full list, see L<JSON::Relaxed::ErrorCodes>.
+
+=head2 err_pos
+
+Fetches the text position in the JSON string where the error occured.
+Returns -1 if this information is not available.
 
 =head2 err_msg
 

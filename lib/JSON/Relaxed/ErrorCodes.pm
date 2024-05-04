@@ -1,10 +1,11 @@
 #! perl
 
 use v5.26;
-use Object::Pad;
 use utf8;
 
-class JSON::Relaxed::ErrorCodes;
+package  JSON::Relaxed::ErrorCodes;
+
+use JSON::Relaxed::Parser; our $VERSION = $JSON::Relaxed::Parser::VERSION;
 
 =head1 JSON::Relaxed::ErrorCodes -- Error messages
 
@@ -168,7 +169,8 @@ my %msg =
     'missing closing quote for string'
   );
 
-method message :common ( $id, $aux = undef ) {
+sub message {
+    my ( $self, $id, $aux ) = @_;
     my $msg = $msg{$id} // ($id =~ s/-/ /gr);
     if ( $aux ) {
 	$msg .= sprintf( ", at character offset %d (before %s)",

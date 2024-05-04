@@ -14,13 +14,13 @@ my %makemaker =
   ( 'ExtUtils::MakeMaker' => 7.54 );
 
 my %prereq =
-  ( 'Object::Pad'         => 0.78,
+  ( 'Object::Pad'         => 0.800,
   );
 
 my %w =
 ( NAME                => 'JSON::Relaxed',
   AUTHOR              => 'Johan Vromans <jv@cpan.org>',
-  VERSION_FROM        => 'lib/JSON/Relaxed.pm',
+  VERSION_FROM        => 'lib/JSON/Relaxed/Parser.pm',
   ABSTRACT_FROM       => 'lib/JSON/Relaxed.pm',
   LICENSE             => 'perl_5',
   PL_FILES            => {},
