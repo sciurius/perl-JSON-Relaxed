@@ -150,7 +150,7 @@ method tokenize( $pretoks = undef ) {
 	}
 
 	# Strings.
-	if ( $pretok =~ /^(["'`])(.*?)\1$/ ) {
+	if ( $pretok =~ /^(["'`])(.*?)\1$/s ) {
 	    my ( $quote, $content ) = ( $1, $2 );
 	    if ( $glue > 1 ) {
 		$tokens[-1]->token->append($content);
