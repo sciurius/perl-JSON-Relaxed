@@ -1,6 +1,11 @@
 Revision history for JSON-Relaxed
 
-0.090
+0.092	2024-05-06
+
+	- Add strict and combined_keys options.
+	- Doc updates and small fixes.
+
+0.090	2024-05-04
 
 	- Redesign/recode.
 	- Rename from_json to decode_json and parse to decode.
