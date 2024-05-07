@@ -6,7 +6,7 @@ use utf8;
 
 package JSON::Relaxed::Parser;
 
-our $VERSION = "0.092";
+our $VERSION = "0.093";
 
 class JSON::Relaxed::Parser;
 
@@ -26,7 +26,10 @@ field $croak_on_error_internal;
 field $strict		   :mutator :param = 0;
 
 # Extension: a.b:c -> a:{b:c}
-field $combined_keys	   :mutator :param = 0;
+field $combined_keys	   :mutator :param = 1;
+
+# Extension: a:b -> {a:b} (if outer)
+field $implied_outer_hash  :mutator :param = 1;
 
 # Error indicators.
 field $err_id		    :accessor;
@@ -248,6 +251,15 @@ method addtok( $tok, $typ, $off ) {
 method structure( %opts ) {
 
     @tokens = @{$opts{tokens}} if $opts{tokens}; # for debugging
+
+    if ( $implied_outer_hash && !$strict ) {
+	if ( @tokens > 2 && $tokens[0]->is_string && $tokens[1]->token eq ':' ) {
+	    $self->addtok( '}', 'C', $tokens[-1]->offset );
+	    $self->addtok( '{', 'C', $tokens[0]->offset );
+	    unshift( @tokens, pop(@tokens ));
+	}
+    }
+    
     my $this = shift(@tokens) // return;
     my $rv;
 

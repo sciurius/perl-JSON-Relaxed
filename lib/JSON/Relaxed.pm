@@ -230,7 +230,16 @@ See L</"ERROR HANDLING">.
 Multiple hash keys can be combined with periods.
 E.g. C<foo.bar:blech> is equivalent to C<foo:{bar:blech}>.
 
-Disabled by default, overruled by C<strict>.
+Enabled by default, overruled by C<strict>.
+
+=item implied_outer_hash
+
+If the JSON looks like a hash, i.e. a string (key) followed by a
+C<:>, the outer C<{> and C<}> are implied.
+
+For example, C<foo:bar> is equivalent to C<{foo:bar}>.
+
+Enabled by default, overruled by C<strict>.
 
 =back
 
@@ -269,7 +278,9 @@ For a full list, see L<JSON::Relaxed::ErrorCodes>.
 
 =head2 combined_keys
 
-Sets options.
+=head2 implied_outer_hash
+
+Sets/resets options.
 
 Note that the value must be assigned to, e.g.
 

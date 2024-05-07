@@ -12,7 +12,7 @@ note("JSON::Relaxed version $JSON::Relaxed::VERSION\n");
 my $json = "{ buy.now: [milk, eggs, butter , dog.bones] }";
 
 # Use combined keys.
-my $p = JSON::Relaxed::Parser->new( combined_keys => 1 );
+my $p = JSON::Relaxed::Parser->new;
 my $res = $p->parse($json);
 my $xp = { buy => { now => [ qw(milk eggs butter), "dog.bones" ] } };
 is_deeply( $res, $xp, "combined keys" );
@@ -26,7 +26,7 @@ is_deeply( $res, $xp, "no combined keys (strict)" );
 diag($p->err_msg) if $p->is_error;
 
 # Not without combined_keys option.
-$p = JSON::Relaxed::Parser->new;
+$p = JSON::Relaxed::Parser->new( combined_keys => 0 );
 $res = $p->parse($json);
 is_deeply( $res, $xp, "no combined keys (no combined keys)" );
 diag($p->err_msg) if $p->is_error;
