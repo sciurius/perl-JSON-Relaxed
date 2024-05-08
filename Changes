@@ -1,7 +1,7 @@
 Revision history for JSON-Relaxed
 
 0.093
-
+	- Use line/column for diagnostics.
 	- Add impied_outer_hash option.
 
 0.092	2024-05-06

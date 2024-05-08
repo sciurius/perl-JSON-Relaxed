@@ -242,7 +242,8 @@ method tokens() { \@tokens }
 method addtok( $tok, $typ, $off ) {
 
     push( @tokens,
-	  JSON::Relaxed::Parser::Token->new( token  => $tok,
+	  JSON::Relaxed::Parser::Token->new( parent => $self,
+					     token  => $tok,
 					     type   => $typ,
 					     offset => $off ) );
 }
@@ -259,7 +260,7 @@ method structure( %opts ) {
 	    unshift( @tokens, pop(@tokens ));
 	}
     }
-    
+
     my $this = shift(@tokens) // return;
     my $rv;
 
@@ -493,6 +494,7 @@ method is_comment_opener( $pretok ) {
 
 class JSON::Relaxed::Parser::Token :isa(JSON::Relaxed::Parser);
 
+field $parent :accessor :param;
 field $token  :accessor :param;
 field $type   :accessor :param;
 field $offset :accessor :param;
@@ -546,6 +548,7 @@ sub new {
     $self;
 }
 
+sub parent { $_[0]->{parent} }
 sub token  { $_[0]->{token}  }
 sub type   { $_[0]->{type}   }
 sub offset { $_[0]->{offset} }
