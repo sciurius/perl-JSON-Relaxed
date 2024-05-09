@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Thu May  9 11:45:14 2024
-# Update Count    : 52
+# Last Modified On: Thu May  9 13:14:12 2024
+# Update Count    : 65
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -37,6 +37,8 @@ my $extra_tokens_ok;
 my $verbose = 1;		# verbose processing
 
 # Development options (not shown with -help).
+my $pretoks = 0;
+my $tokens = 0;
 my $debug = 0;			# debugging
 my $trace = 0;			# trace (show process)
 my $test = 0;			# test mode.
@@ -91,14 +93,50 @@ for my $file ( @ARGV ) {
 	die( "$file: $opts->{error}\n") if $opts->{error};
     }
 
-    my $data = $parser->decode($json);
+    my $data;
+    if ( $pretoks || $tokens ) {
+	$parser->croak_on_error = 0;
+	$parser->parse_chars($json);
+	if ( $pretoks ) {
+	    my $pretoks = $parser->pretoks;
+	    dumper( $pretoks, as => "Pretoks" );
+	}
+	$parser->tokenize;
+	if ( $tokens && !$parser->is_error ) {
+	    my $tokens = $parser->tokens;
+	    dumper( $tokens, as => "Tokens" );
+	}
+	$data = $parser->structure unless $parser->is_error;
+    }
+    else {
+	$data = $parser->decode($json);
+    }
+
     if ( $parser->is_error ) {
 	warn( $execute ? "$file: JSON error: " : "", $parser->err_msg, "\n" );
 	next;
     }
 
-    if ( $mode eq "dump" ) {
-	my %opts = ( fulldump => 1 );
+    if ( $mode eq "dump" || $mode eq "dumper" ) {
+	dumper($data);
+    }
+
+    elsif ( $mode eq "json_xs" ) {
+	require JSON::XS;
+	print ( JSON::XS->new->canonical->utf8(0)->pretty->encode($data) );
+    }
+
+    else {			# default JSON
+	require JSON::PP;
+	print ( JSON::PP->new->canonical->utf8(0)->pretty->encode($data) );
+    }
+}
+
+################ Subroutines ################
+
+sub dumper($data, %opts) {
+    if ( $mode eq "dump" || %opts ) {
+	my %opts = ( %opts );
 	require Data::Printer;
 	if ( -t STDOUT ) {
 	    Data::Printer::p( $data, %opts );
@@ -119,16 +157,6 @@ for my $file ( @ARGV ) {
 	local $Data::Dumper::Useqq     = 0; # I want unicode visible
 	require Data::Dumper;
 	print( Data::Dumper->Dump( [$data] ) );
-    }
-
-    elsif ( $mode eq "json_xs" ) {
-	require JSON::XS;
-	print ( JSON::XS->new->canonical->utf8(0)->pretty->encode($data) );
-    }
-
-    else {			# default JSON
-	require JSON::PP;
-	print ( JSON::PP->new->canonical->utf8(0)->pretty->encode($data) );
     }
 }
 
@@ -151,6 +179,8 @@ sub app_options() {
 		     'implied_outer_hash!'  => \$implied_outer_hash,
 		     'croak_on_error!'	    => \$croak_on_error,
 		     'extra_tokens_ok!'	    => \$extra_tokens_ok,
+		     'pretoks+'		    => \$pretoks,
+		     'tokens+'		    => \$tokens,
 		     'ident'		    => \$ident,
 		     'verbose+'		    => \$verbose,
 		     'quiet'		    => sub { $verbose = 0 },
