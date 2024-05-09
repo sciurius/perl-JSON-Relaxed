@@ -102,7 +102,7 @@ method is_quote ($c) {
 }
 
 # Numbers. A special case of unquoted strings.
-my $p_number = q{[+-]?\d*.?\d+(?:[Ee][+-]?\d+)?};
+my $p_number = q{[+-]?\d*\.?\d+(?:[Ee][+-]?\d+)?};
 
 method parse_chars( $source = undef ) {
 
@@ -219,7 +219,7 @@ method tokenize( $pretoks = undef ) {
 	# Numbers.
 	elsif ( $pretok =~ /^$p_number$/ ) {
 	    $self->addtok( JSON::Relaxed::Parser::String::Unquoted->new
-			   ( content => $pretok ), 'N', $offset );
+			   ( content => 0+$pretok ), 'N', $offset );
 	    $offset += length($pretok);
 	    $uq_open = 0;
 	}
@@ -439,9 +439,9 @@ method get_value() {
 
 method set_value ( $rv, $key, $value = undef ) {
     return $rv->{$key} = $value
-      unless ($prp || $combined_keys) && !$strict && $key =~ /.\../s;
+      unless ($prp || $combined_keys) && !$strict && $key =~ /\./s;
 
-    my @keys = split(/\./, $key );
+    my @keys = split(/\./, $key, -1 );
     my $c = \$rv;
     for ( @keys ) {
 	if ( /^[+-]?\d+$/ ) {
@@ -513,6 +513,105 @@ method build_array() {
 
 method is_comment_opener( $pretok ) {
     $pretok eq '//' || $pretok eq '/*';
+}
+
+method pretty( $rv, $level=0 ) {
+    my $s = "";
+    my $i = 0;
+
+    my $pr_string = sub ( $rv, $level=0, $always_string=1 ) {
+	if ( !defined($rv) ) {
+	    $s .= "null";
+	    return;
+	}
+
+	my $v = $rv =~ s/\\/\\\\/gr;
+	if ( $v =~ $p_reserved || $v =~ $p_quotes || $v =~ /\s/
+	     || ( $always_string && $v =~ /^(true|false|null)$/i ) ) {
+	    if ( $v !~ /\"/ ) {
+		$s .= '"' . $v . '"';
+	    }
+	    elsif ( $v !~ /\'/ ) {
+		$s .= "'" . $v . "'";
+	    }
+	    elsif ( $v !~ /\`/ ) {
+		$s .= "`" . $v . "`";
+	    }
+	    else {
+		$s .= '"' . ($v =~ s/(["'`])/\\$1/r) . '"';
+	    }
+	}
+	else {
+	    $s .= length($v) ? $v : '""';
+	}
+    };
+
+    my $pr_array = sub ( $rv, $level=0 ) {
+	unless ( @$rv ) {
+	    $s .= "[]";
+	    return;
+	}
+	my @v = map { $self->pretty( $_, $level+1 ) } @$rv;
+	if ( $i + length("@v") < 72 && "@v" !~ $p_newlines ) {
+	    $s .= "[ @v ]";
+	}
+	else {
+	    $s .= "[\n";
+	    $s .= s/^/(" " x ($i+2))/gemr . "\n" for @v;
+	    $s .= (" " x $i) . "]";
+	}
+    };
+
+    my $pr_hash; $pr_hash = sub ( $rv, $level=0 ) {
+	unless ( keys(%$rv) ) {
+	    $s .= ": {}";
+	    return;
+	}
+	if ( $level || !$implied_outer_hash ) {
+	    $s .= "{\n";
+	    $i += 2;
+	}
+	for ( sort keys %$rv ) {
+	    my $k = $_;
+	    my $key = $_;
+	    my $v = $rv->{$k};
+	    while ( ref($v) eq 'HASH'
+		    && keys(%$v) == 1 ) {
+		my $k = (keys(%$v))[0];
+		$key .= ".$k";
+		$v = $v->{$k};
+	    }
+	    $s .= (" " x $i) . $self->pretty( $key, $level+1 );
+	    if ( ref($v) eq 'HASH' ) {
+		$s .= " "; $pr_hash->( $v, $level+1 );
+	    }
+	    elsif ( ref($v) eq 'ARRAY' ) {
+		$s .= " : "; $pr_array->( $v, $level+1 );
+	    }
+	    else {
+		$s .= " : "; $pr_string->( $v, $level+1 );
+	    }
+	    $s .= "\n";
+	}
+	if ( $level || !$implied_outer_hash ) {
+	    $i -= 2;
+	    $s .= (" " x $i) . "}";
+	}
+	else {
+	    $s =~ s/\n+$//;
+	}
+    };
+
+    if ( ref($rv) eq 'HASH' ) {
+	$pr_hash->( $rv, $level );
+    }
+    elsif ( ref($rv) eq 'ARRAY' ) {
+	$pr_array->( $rv, $level );
+    }
+    else {
+	$pr_string->( $rv, $level );
+    }
+    return $s;
 }
 
 ################ Tokens ################

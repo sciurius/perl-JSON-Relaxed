@@ -368,6 +368,13 @@ Note that the value must be assigned to, e.g.
 
     $parser->strict = 1;	# enable
 
+=head2 pretty
+
+Produces a string with a pretty-printed really relaxed rendition of the data.
+
+If a Perl structure is passed as argument, this is pretty-printed.
+Note however that this structure may contain only strings, arrays and hashes.
+
 =cut
 
 sub new {

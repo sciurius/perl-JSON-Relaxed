@@ -4,6 +4,7 @@ Revision history for JSON-Relaxed
 	- Use line/column for diagnostics.
 	- Add impied_outer_hash option.
 	- Add prp option for near-prp syntax.
+	- Add RRJSON pretty printing.
 
 0.092	2024-05-06
 

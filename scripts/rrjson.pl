@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Thu May  9 13:14:12 2024
-# Update Count    : 65
+# Last Modified On: Thu May  9 21:58:21 2024
+# Update Count    : 68
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -23,7 +23,7 @@ my ($my_name, $my_version) = qw( rrjson 0.02 );
 use Getopt::Long 2.13;
 
 # Command line options.
-my $mode = "json";
+my $mode = "pretty";
 my $execute;			# direct JSON from command line
 
 # Parser options.
@@ -72,7 +72,7 @@ my $parser = JSON::Relaxed::Parser->new
 
 if ( $verbose ) {
     my @opts;
-    for ( qw( strict prp implied_outer_hash croak_on_error extra_tokens_ok ) ) {
+    for ( qw( strict prp combined_keys implied_outer_hash croak_on_error extra_tokens_ok ) ) {
 	push( @opts, $_ ) if $parser->$_;
     }
     if ( @opts ) {
@@ -121,6 +121,9 @@ for my $file ( @ARGV ) {
 	dumper($data);
     }
 
+    elsif ( $mode eq "pretty" ) {
+	print $parser->pretty($data), "\n";
+    }
     elsif ( $mode eq "json_xs" ) {
 	require JSON::XS;
 	print ( JSON::XS->new->canonical->utf8(0)->pretty->encode($data) );
