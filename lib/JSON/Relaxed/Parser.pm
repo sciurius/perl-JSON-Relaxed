@@ -147,6 +147,7 @@ method parse_chars( $source = undef ) {
     # Remove empty strings.
     @pretoks = grep { length($_) } @pretoks;
 
+    return;
 }
 
 # Accessor for @pretoks.
@@ -244,7 +245,7 @@ method tokenize( $pretoks = undef ) {
 	    $offset += length($pretok);
 	}
     }
-    @tokens;
+    return;
 }
 
 # Accessor for @tokens,
