@@ -198,8 +198,15 @@ method tokenize( $pretoks = undef ) {
 	}
 	$glue = 0;
 
-	# // and /* comment */
-	if ( $pretok =~ m<^/[*/].+>s ) {
+	# // comment.
+	if ( $pretok =~ m<^//(.*)> ) {
+	    # $self->addtok( $1, 'L', $offset );
+	    $offset += length($pretok);
+	    $uq_open = 0;
+	}
+
+	# /* comment */
+	elsif ( $pretok =~ m<^/\*.+>s ) {
 	    $offset += length($pretok);
 	    $uq_open = 0;
 	}
@@ -515,7 +522,14 @@ method is_comment_opener( $pretok ) {
     $pretok eq '//' || $pretok eq '/*';
 }
 
-method pretty( $rv, $level=0 ) {
+method pretty(%opts) {
+    my $level   = $opts{level}              // 0;
+    my $rv      = $opts{data}               // "Missing data";
+    my $indent  = $opts{indent}             // 2;
+    my $impoh   = $opts{implied_outer_hash} // $implied_outer_hash;
+    my $ckeys   = $opts{combined_keys}      // $combined_keys;
+    my $prpmode = $opts{prp}                // $prp;
+
     my $s = "";
     my $i = 0;
 
@@ -526,7 +540,17 @@ method pretty( $rv, $level=0 ) {
 	}
 
 	my $v = $rv =~ s/\\/\\\\/gr;
-	if ( $v =~ $p_reserved || $v =~ $p_quotes || $v =~ /\s/
+	$v =~ s/\n/\\n/g;
+	$v =~ s/\r/\\r/g;
+	$v =~ s/\f/\\f/g;
+	$v =~ s/\013/\\v/g;
+	$v =~ s/\010/\\b/g;
+	$v =~ s/\t/\\t/g;
+	$v =~ s/([^ -ÿ])/sprintf( ord($1) < 0xffff ? "\\u%04x" : "\\u{%x}", ord($1))/ge;
+	if ( $v ne $rv ) {
+	    $s .= '"' . ($v =~ s/(["'`])/\\$1/r) . '"';
+	}
+	elsif ( $v =~ $p_reserved || $v =~ $p_quotes || $v =~ /\s/
 	     || ( $always_string && $v =~ /^(true|false|null)$/i ) ) {
 	    if ( $v !~ /\"/ ) {
 		$s .= '"' . $v . '"';
@@ -551,13 +575,13 @@ method pretty( $rv, $level=0 ) {
 	    $s .= "[]";
 	    return;
 	}
-	my @v = map { $self->pretty( $_, $level+1 ) } @$rv;
+	my @v = map { $self->pretty( %opts, data => $_, level => $level+1 ) } @$rv;
 	if ( $i + length("@v") < 72 && "@v" !~ $p_newlines ) {
 	    $s .= "[ @v ]";
 	}
 	else {
 	    $s .= "[\n";
-	    $s .= s/^/(" " x ($i+2))/gemr . "\n" for @v;
+	    $s .= s/^/(" " x ($i+$indent))/gemr . "\n" for @v;
 	    $s .= (" " x $i) . "]";
 	}
     };
@@ -567,34 +591,37 @@ method pretty( $rv, $level=0 ) {
 	    $s .= ": {}";
 	    return;
 	}
-	if ( $level || !$implied_outer_hash ) {
+	if ( $level || !$impoh ) {
 	    $s .= "{\n";
-	    $i += 2;
+	    $i += $indent;
 	}
 	for ( sort keys %$rv ) {
 	    my $k = $_;
 	    my $key = $_;
 	    my $v = $rv->{$k};
-	    while ( ref($v) eq 'HASH'
-		    && keys(%$v) == 1 ) {
+	    while ( $ckeys && ref($v) eq 'HASH' && keys(%$v) == 1 ) {
 		my $k = (keys(%$v))[0];
 		$key .= ".$k";
 		$v = $v->{$k};
 	    }
-	    $s .= (" " x $i) . $self->pretty( $key, $level+1 );
+	    $s .= (" " x $i) . $self->pretty( %opts, data => $key,
+					      level => $level+1 );
 	    if ( ref($v) eq 'HASH' ) {
-		$s .= " "; $pr_hash->( $v, $level+1 );
+		$s .= $prpmode ? " " : " : ";
+		$pr_hash->( $v, $level+1 );
 	    }
 	    elsif ( ref($v) eq 'ARRAY' ) {
-		$s .= " : "; $pr_array->( $v, $level+1 );
+		$s .= " : ";
+		$pr_array->( $v, $level+1 );
 	    }
 	    else {
-		$s .= " : "; $pr_string->( $v, $level+1 );
+		$s .= " : ";
+		$pr_string->( $v, $level+1 );
 	    }
 	    $s .= "\n";
 	}
-	if ( $level || !$implied_outer_hash ) {
-	    $i -= 2;
+	if ( $level || !$impoh ) {
+	    $i -= $indent;
 	    $s .= (" " x $i) . "}";
 	}
 	else {

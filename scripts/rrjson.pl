@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Thu May  9 21:58:21 2024
-# Update Count    : 68
+# Last Modified On: Fri May 10 19:33:48 2024
+# Update Count    : 71
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -57,6 +57,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use JSON::Relaxed;
 use File::LoadLines;
+use Encode qw(decode_utf8);
 binmode STDOUT => ':utf8';
 binmode STDERR => ':utf8';
 
@@ -85,7 +86,7 @@ for my $file ( @ARGV ) {
 
     my $json;
     if ( $execute ) {
-	$json = $file;
+	$json = decode_utf8($file);
     }
     else {
 	my $opts = { split => 0, fail => "soft" };
@@ -122,7 +123,7 @@ for my $file ( @ARGV ) {
     }
 
     elsif ( $mode eq "pretty" ) {
-	print $parser->pretty($data), "\n";
+	print $parser->pretty( data => $data ), "\n";
     }
     elsif ( $mode eq "json_xs" ) {
 	require JSON::XS;
