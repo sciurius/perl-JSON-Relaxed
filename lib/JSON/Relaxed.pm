@@ -362,17 +362,22 @@ For a full list, see L<JSON::Relaxed::ErrorCodes>.
 
 =head2 prp
 
+=head2 pretty (see "encode").
+
 Sets/resets options.
 
 Note that the value must be assigned to, e.g.
 
     $parser->strict = 1;	# enable
 
-=head2 pretty
+=head2 encode
 
-Produces a string with a pretty-printed really relaxed rendition of the data.
+    $string = $parser->encode( data => $data, %options )
 
-If a Perl structure is passed as argument, this is pretty-printed.
+Produces a string with a really relaxed rendition of the data.
+With option C<pretty>, the rendition is pretty-printed.
+
+A Perl structure is passed as C<data> option. This structure is encoded.
 Note however that this structure may contain only strings, arrays and hashes.
 
 =cut

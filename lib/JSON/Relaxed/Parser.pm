@@ -6,7 +6,7 @@ use utf8;
 
 package JSON::Relaxed::Parser;
 
-our $VERSION = "0.093";
+our $VERSION = "0.094";
 
 class JSON::Relaxed::Parser;
 
@@ -33,6 +33,9 @@ field $implied_outer_hash  :mutator :param = 1;
 
 # Extension: = as :, and optional before {
 field $prp		    :mutator :param = 0;
+
+# Formatted output.
+field $pretty		    :mutator :param = 0;
 
 # Error indicators.
 field $err_id		    :accessor;
@@ -522,13 +525,14 @@ method is_comment_opener( $pretok ) {
     $pretok eq '//' || $pretok eq '/*';
 }
 
-method pretty(%opts) {
+method encode(%opts) {
     my $level   = $opts{level}              // 0;
     my $rv      = $opts{data}               // "Missing data";
     my $indent  = $opts{indent}             // 2;
     my $impoh   = $opts{implied_outer_hash} // $implied_outer_hash;
     my $ckeys   = $opts{combined_keys}      // $combined_keys;
     my $prpmode = $opts{prp}                // $prp;
+    my $pretty  = $opts{pretty}             // $pretty;
 
     my $s = "";
     my $i = 0;
@@ -575,24 +579,27 @@ method pretty(%opts) {
 	    $s .= "[]";
 	    return;
 	}
-	my @v = map { $self->pretty( %opts, data => $_, level => $level+1 ) } @$rv;
+	my @v = map { $self->encode( %opts, data => $_, level => $level+1 ) } @$rv;
 	if ( $i + length("@v") < 72 && "@v" !~ $p_newlines ) {
-	    $s .= "[ @v ]";
+	    $s .= $pretty ? "[ @v ]" : "[".join(",",@v)."]";
 	}
-	else {
+	elsif ( $pretty ) {
 	    $s .= "[\n";
 	    $s .= s/^/(" " x ($i+$indent))/gemr . "\n" for @v;
 	    $s .= (" " x $i) . "]";
+	}
+	else {
+	    $s .= "[".join(",",@v)."]";
 	}
     };
 
     my $pr_hash; $pr_hash = sub ( $rv, $level=0 ) {
 	unless ( keys(%$rv) ) {
-	    $s .= ": {}";
+	    $s .= $pretty ? ": {}" : ":{}";
 	    return;
 	}
 	if ( $level || !$impoh ) {
-	    $s .= "{\n";
+	    $s .= $pretty ? "{\n" : "{";
 	    $i += $indent;
 	}
 	for ( sort keys %$rv ) {
@@ -604,25 +611,31 @@ method pretty(%opts) {
 		$key .= ".$k";
 		$v = $v->{$k};
 	    }
-	    $s .= (" " x $i) . $self->pretty( %opts, data => $key,
-					      level => $level+1 );
+	    $s .= (" " x $i) if $pretty;
+	    $s .= $self->encode( %opts, data => $key, level => $level+1 );
 	    if ( ref($v) eq 'HASH' ) {
-		$s .= $prpmode ? " " : " : ";
+		if ( $pretty ) {
+		    $s .= $prpmode ? " " : " : ";
+		}
+		elsif ( !$prpmode ) {
+		    $s .=  ":";
+		}
 		$pr_hash->( $v, $level+1 );
 	    }
 	    elsif ( ref($v) eq 'ARRAY' ) {
-		$s .= " : ";
+		$s .= $pretty ? " : " : ":";
 		$pr_array->( $v, $level+1 );
 	    }
 	    else {
-		$s .= " : ";
+		$s .= $pretty ? " : " : ":";
 		$pr_string->( $v, $level+1 );
 	    }
-	    $s .= "\n";
+	    $s .= "\n" if $pretty;
 	}
 	if ( $level || !$impoh ) {
 	    $i -= $indent;
-	    $s .= (" " x $i) . "}";
+	    $s .= (" " x $i) if $pretty;
+	    $s .= "}";
 	}
 	else {
 	    $s =~ s/\n+$//;
@@ -638,6 +651,7 @@ method pretty(%opts) {
     else {
 	$pr_string->( $rv, $level );
     }
+    $s .= "\n" if $pretty && !$level && $s !~ /\n$/;
     return $s;
 }
 

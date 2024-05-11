@@ -10,6 +10,7 @@ t/40_comma.t
 t/50_combined.t
 t/51_impliedhash.t
 t/60_prp.t
+t/70_pretty.t
 t/99_regtest.t
 lib/JSON/Relaxed.pm
 lib/JSON/Relaxed/Parser.pm

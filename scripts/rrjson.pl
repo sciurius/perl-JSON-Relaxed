@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Fri May 10 19:33:48 2024
-# Update Count    : 71
+# Last Modified On: Sat May 11 13:53:45 2024
+# Update Count    : 81
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -23,11 +23,12 @@ my ($my_name, $my_version) = qw( rrjson 0.02 );
 use Getopt::Long 2.13;
 
 # Command line options.
-my $mode = "pretty";
+my $mode = "rrjson";
 my $execute;			# direct JSON from command line
 
 # Parser options.
 my $strict;
+my $pretty = 1;
 my $prp;
 my $combined_keys;
 my $implied_outer_hash;
@@ -69,11 +70,12 @@ my $parser = JSON::Relaxed::Parser->new
     defined($croak_on_error) ? ( croak_on_error => $croak_on_error ) : (),
     defined($extra_tokens_ok) ? ( extra_tokens_ok => $extra_tokens_ok ) : (),
     defined($prp) ? ( prp => $prp ) : (),
+    defined($pretty) ? ( pretty => $pretty ) : (),
     );
 
 if ( $verbose ) {
     my @opts;
-    for ( qw( strict prp combined_keys implied_outer_hash croak_on_error extra_tokens_ok ) ) {
+    for ( qw( strict pretty prp combined_keys implied_outer_hash croak_on_error extra_tokens_ok ) ) {
 	push( @opts, $_ ) if $parser->$_;
     }
     if ( @opts ) {
@@ -122,17 +124,18 @@ for my $file ( @ARGV ) {
 	dumper($data);
     }
 
-    elsif ( $mode eq "pretty" ) {
-	print $parser->pretty( data => $data ), "\n";
+    elsif ( $mode eq "rrjson" ) {
+	print $parser->encode( data => $data );
+	print "\n" unless $pretty;
     }
     elsif ( $mode eq "json_xs" ) {
 	require JSON::XS;
-	print ( JSON::XS->new->canonical->utf8(0)->pretty->encode($data) );
+	print ( JSON::XS->new->canonical->utf8(0)->pretty($pretty)->encode($data) );
     }
 
     else {			# default JSON
 	require JSON::PP;
-	print ( JSON::PP->new->canonical->utf8(0)->pretty->encode($data) );
+	print ( JSON::PP->new->canonical->utf8(0)->pretty($pretty)->encode($data) );
     }
 }
 
@@ -172,6 +175,7 @@ sub app_options() {
 
     # Process options, if any.
     if ( !GetOptions(
+		     'rrjson'		    => sub { $mode = "rrjson" },
 		     'json|json_pp'	    => sub { $mode = "json" },
 		     'json_xs'		    => sub { $mode = "json_xs" },
 		     'dump'		    => sub { $mode = "dump" },
@@ -183,6 +187,7 @@ sub app_options() {
 		     'implied_outer_hash!'  => \$implied_outer_hash,
 		     'croak_on_error!'	    => \$croak_on_error,
 		     'extra_tokens_ok!'	    => \$extra_tokens_ok,
+		     'pretty!'		    => \$pretty,
 		     'pretoks+'		    => \$pretoks,
 		     'tokens+'		    => \$tokens,
 		     'ident'		    => \$ident,
@@ -211,8 +216,10 @@ Usage: $0 [options] [file ...]
   Inputs
    --execute -e		args are JSON, not filenames
   Output modes
+   --rrjson		pretty printed RRJSON output (default)
    --json		JSON output (default)
    --json_xs		JSON_XS output
+   --no-pretty		compact (non-pretty) output
    --dump		dump structure (Data::Printer)
    --dumper		dump structure (Data::Dumper)
   Parser options
