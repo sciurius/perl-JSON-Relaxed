@@ -543,7 +543,10 @@ method encode(%opts) {
 	    return;
 	}
 
-	my $v = $rv =~ s/\\/\\\\/gr;
+	my $v = $rv;
+	my $needquotes = $v =~ /^$p_number$/ && 0+$v ne $v;
+
+	$v =~ s/\\/\\\\/g;
 	$v =~ s/\n/\\n/g;
 	$v =~ s/\r/\\r/g;
 	$v =~ s/\f/\\f/g;
@@ -551,7 +554,7 @@ method encode(%opts) {
 	$v =~ s/\010/\\b/g;
 	$v =~ s/\t/\\t/g;
 	$v =~ s/([^ -ÿ])/sprintf( ord($1) < 0xffff ? "\\u%04x" : "\\u{%x}", ord($1))/ge;
-	if ( $v ne $rv ) {
+	if ( $needquotes || $v ne $rv ) {
 	    $s .= '"' . ($v =~ s/(["'`])/\\$1/r) . '"';
 	}
 	elsif ( $v =~ $p_reserved || $v =~ $p_quotes || $v =~ /\s/

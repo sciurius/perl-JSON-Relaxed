@@ -4,6 +4,8 @@ META.yml
 README.md
 Makefile.PL
 t/10_uescape.t
+t/11_uescape.t
+t/12_number.t
 t/20_stringcont.t
 t/30_comment.t
 t/40_comma.t
@@ -17,6 +19,8 @@ lib/JSON/Relaxed/Parser.pm
 lib/JSON/Relaxed/ErrorCodes.pm
 scripts/pp.PL
 scripts/rrjson.pl
+t/regtests/numstrings.json
+t/regtests/numstrings.rjson
 t/regtests/site01.json
 t/regtests/site01.rjson
 t/regtests/site02.json
