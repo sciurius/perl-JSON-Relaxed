@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Sat May 11 13:53:45 2024
-# Update Count    : 81
+# Last Modified On: Mon May 13 09:58:19 2024
+# Update Count    : 82
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -73,7 +73,7 @@ my $parser = JSON::Relaxed::Parser->new
     defined($pretty) ? ( pretty => $pretty ) : (),
     );
 
-if ( $verbose ) {
+if ( $verbose > 1 ) {
     my @opts;
     for ( qw( strict pretty prp combined_keys implied_outer_hash croak_on_error extra_tokens_ok ) ) {
 	push( @opts, $_ ) if $parser->$_;
