@@ -16,7 +16,8 @@ my @files = sort glob("*.rjson");
 
 my $tests = 0;
 my $pp = JSON::PP->new;
-my $p = JSON::Relaxed->new;
+my $p = JSON::Relaxed->new( croak_on_error => 0 );
+
 foreach my $rjsonfile ( @files ) {
 
     # Load the file.
