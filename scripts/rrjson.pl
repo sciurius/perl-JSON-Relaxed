@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Mon May 13 09:58:19 2024
-# Update Count    : 82
+# Last Modified On: Wed May 15 12:45:20 2024
+# Update Count    : 93
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -71,11 +71,12 @@ my $parser = JSON::Relaxed::Parser->new
     defined($extra_tokens_ok) ? ( extra_tokens_ok => $extra_tokens_ok ) : (),
     defined($prp) ? ( prp => $prp ) : (),
     defined($pretty) ? ( pretty => $pretty ) : (),
+    booleans => 1,				# force default
     );
 
 if ( $verbose > 1 ) {
     my @opts;
-    for ( qw( strict pretty prp combined_keys implied_outer_hash croak_on_error extra_tokens_ok ) ) {
+    for ( qw( strict pretty prp combined_keys implied_outer_hash croak_on_error extra_tokens_ok booleans ) ) {
 	push( @opts, $_ ) if $parser->$_;
     }
     if ( @opts ) {
@@ -99,7 +100,8 @@ for my $file ( @ARGV ) {
     my $data;
     if ( $pretoks || $tokens ) {
 	$parser->croak_on_error = 0;
-	$parser->parse_chars($json);
+	$parser->data = $json;
+	$parser->pretokenize;
 	if ( $pretoks ) {
 	    my $pretoks = $parser->pretoks;
 	    dumper( $pretoks, as => "Pretoks" );
@@ -116,7 +118,8 @@ for my $file ( @ARGV ) {
     }
 
     if ( $parser->is_error ) {
-	warn( $execute ? "$file: JSON error: " : "", $parser->err_msg, "\n" );
+	warn( $execute ? "$file: JSON error: " : "",
+	      "[", $parser->err_id, "] ", $parser->err_msg, "\n" );
 	next;
     }
 
@@ -135,7 +138,10 @@ for my $file ( @ARGV ) {
 
     else {			# default JSON
 	require JSON::PP;
-	print ( JSON::PP->new->canonical->utf8(0)->pretty($pretty)->encode($data) );
+	print ( JSON::PP->new->canonical->utf8(0)->pretty($pretty)
+		->boolean_values([JSON::Boolean->new(from=>"false"),
+				  JSON::Boolean->new(from=>"true")])
+		->convert_blessed->encode($data) );
     }
 }
 

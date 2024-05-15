@@ -1,10 +1,13 @@
 Revision history for JSON-Relaxed
 
-0.094
+0.094	2024-05-15
+
 	- Further enhancements for pretty printing.
 	- Treat numbers that do not yield themselves as strings (e.g. "1.0").
+	- Handle booleans properly.
 
 0.093	2024-05-09
+
 	- Use line/column for diagnostics.
 	- Add impied_outer_hash option.
 	- Add prp option for near-prp syntax.
