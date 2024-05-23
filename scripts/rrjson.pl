@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Mar 10 18:02:02 2024
 # Last Modified By: 
-# Last Modified On: Wed May 15 12:45:20 2024
-# Update Count    : 93
+# Last Modified On: Thu May 23 09:34:42 2024
+# Update Count    : 105
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -25,10 +25,12 @@ use Getopt::Long 2.13;
 # Command line options.
 my $mode = "rrjson";
 my $execute;			# direct JSON from command line
+my $schema;			# schema (optional)
 
 # Parser options.
 my $strict;
 my $pretty = 1;
+my $order = 1;
 my $prp;
 my $combined_keys;
 my $implied_outer_hash;
@@ -52,6 +54,16 @@ $trace |= ($debug || $test);
 
 ################ Presets ################
 
+# For conditional filling of hashes.
+sub maybe ( $key, $value, @rest ) {
+    if (defined $key and defined $value) {
+	return ( $key, $value, @rest );
+    }
+    else {
+	( defined($key) || @rest ) ? @rest : ();
+    }
+}
+
 ################ The Process ################
 
 use FindBin;
@@ -62,16 +74,25 @@ use Encode qw(decode_utf8);
 binmode STDOUT => ':utf8';
 binmode STDERR => ':utf8';
 
+if ( $schema ) {
+    my $parser = JSON::Relaxed::Parser->new( strict => 0 );
+    my $data = loadlines( $schema, { split => 0 } );
+    $data = $parser->decode($data);
+    warn("Schema $schema loaded\n") if $verbose;
+    $schema = $data;
+}
+
 my $parser = JSON::Relaxed::Parser->new
-  ( defined($strict) ? ( strict => $strict ) : (),
-    defined($prp) ? ( prp => $prp ) : (),
-    defined($combined_keys) ? ( combined_keys => $combined_keys ) : (),
-    defined($implied_outer_hash) ? ( implied_outer_hash => $implied_outer_hash ) : (),
-    defined($croak_on_error) ? ( croak_on_error => $croak_on_error ) : (),
-    defined($extra_tokens_ok) ? ( extra_tokens_ok => $extra_tokens_ok ) : (),
-    defined($prp) ? ( prp => $prp ) : (),
-    defined($pretty) ? ( pretty => $pretty ) : (),
-    booleans => 1,				# force default
+  ( booleans		      => 1,	# force default
+    maybe strict	      => $strict,
+    maybe prp		      => $prp,
+    maybe combined_keys	      => $combined_keys,
+    maybe implied_outer_hash  => $implied_outer_hash,
+    maybe croak_on_error      => $croak_on_error,
+    maybe extra_tokens_ok     => $extra_tokens_ok,
+    maybe prp		      => $prp,
+    maybe pretty	      => $pretty,
+    maybe key_order	      => $order,
     );
 
 if ( $verbose > 1 ) {
@@ -128,7 +149,7 @@ for my $file ( @ARGV ) {
     }
 
     elsif ( $mode eq "rrjson" ) {
-	print $parser->encode( data => $data );
+	print $parser->encode( data => $data, maybe schema => $schema );
 	print "\n" unless $pretty;
     }
     elsif ( $mode eq "json_xs" ) {
@@ -181,6 +202,7 @@ sub app_options() {
 
     # Process options, if any.
     if ( !GetOptions(
+		     'schema=s'		    => \$schema,
 		     'rrjson'		    => sub { $mode = "rrjson" },
 		     'json|json_pp'	    => sub { $mode = "json" },
 		     'json_xs'		    => sub { $mode = "json_xs" },
@@ -194,6 +216,7 @@ sub app_options() {
 		     'croak_on_error!'	    => \$croak_on_error,
 		     'extra_tokens_ok!'	    => \$extra_tokens_ok,
 		     'pretty!'		    => \$pretty,
+		     'order!'		    => \$order,
 		     'pretoks+'		    => \$pretoks,
 		     'tokens+'		    => \$tokens,
 		     'ident'		    => \$ident,
@@ -221,16 +244,19 @@ sub app_usage( $exit ) {
 Usage: $0 [options] [file ...]
   Inputs
    --execute -e		args are JSON, not filenames
+   --schema=XXX		optional JSON schema
   Output modes
    --rrjson		pretty printed RRJSON output (default)
    --json		JSON output (default)
    --json_xs		JSON_XS output
    --no-pretty		compact (non-pretty) output
+   --order		retain order of hash keys
    --dump		dump structure (Data::Printer)
    --dumper		dump structure (Data::Dumper)
   Parser options
    --strict		see the docs
    --prp                see the docs
+   --combined_keys	see the docs
    --implied_outer_hash see the docs
    --croak_on_error     see the docs
    --extra_tokens_ok    see the docs
