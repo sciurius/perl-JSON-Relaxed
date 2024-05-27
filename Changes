@@ -6,6 +6,7 @@ Revision history for JSON-Relaxed
 	- Treat numbers that do not yield themselves as strings (e.g. "1.0").
 	- Handle booleans properly.
 	- With prp, allow on and off as boolean values.
+	- Optionally, use schema data to provide comments when encoding.
 
 0.093	2024-05-09
 

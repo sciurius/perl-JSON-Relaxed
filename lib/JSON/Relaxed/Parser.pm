@@ -556,7 +556,11 @@ method is_comment_opener( $pretok ) {
     $pretok eq '//' || $pretok eq '/*';
 }
 
+sub min { $_[0] < $_[1] ? $_[0] : $_[1] }
+sub max { $_[0] > $_[1] ? $_[0] : $_[1] }
+
 method encode(%opts) {
+    my $schema  = $opts{schema};
     my $level   = $opts{level}              // 0;
     my $rv      = $opts{data};			# allow undef
     my $indent  = $opts{indent}             // 2;
@@ -564,26 +568,49 @@ method encode(%opts) {
     my $ckeys   = $opts{combined_keys}      // $combined_keys;
     my $prpmode = $opts{prp}                // $prp;
     my $pretty  = $opts{pretty}             // $pretty;
+    my $strict  = $opts{strict}             // $strict;
+
+    if ( $strict ) {
+	$ckeys = $prpmode = $impoh = 0;
+    }
 
     my $s = "";
     my $i = 0;
+    my $props = $schema->{properties};
+    #warn("L$level - ", join(" ", sort keys(%$props)),"\n");
+    if ( !$level && $schema->{title} ) {
+	$s .= "// " . $schema->{title} . "\n";
+    }
 
-    my $pr_string = sub ( $rv, $level=0 ) {
+    my $comments = sub( $p ) {
+	my $s = "";
+	my $did = $level;
+	for my $topic ( qw( title description infoText ) ) {
+	    next unless $p->{$topic};
+	    $s .= "\n" unless $did++;
+	    $s .= (" " x $i) . "// $_\n"
+	      for split( /\s*<br\/?>|\\n|\n/, $p->{$topic} );
+	}
+	return $s;
+    };
+
+    my $pr_string = sub ( $str ) {
 	my $always_string;
 
 	# Reserved strings.
-	if ( !defined($rv) ) {
-	    $s .= "null";
-	    return;
-	}
-	if ( UNIVERSAL::isa( $rv, 'JSON::Boolean' ) ) {
-	    $s .= '"' if $always_string;
-	    $s .= $rv;
-	    $s .= '"' if $always_string;
-	    return;
+	if ( !defined($str) ) {
+	    return "null";
 	}
 
-	my $v = $rv;
+	if ( UNIVERSAL::isa( $str, 'JSON::Boolean' ) ) {
+	    my $s = "";
+	    $s .= '"' if $always_string;
+	    $s .= $str;
+	    $s .= '"' if $always_string;
+	    return $s;
+	}
+
+	my $v = $str;
 	$always_string ||= $v =~ /^$p_number$/ && 0+$v ne $v;
 
 	$v =~ s/\\/\\\\/g;
@@ -594,8 +621,8 @@ method encode(%opts) {
 	$v =~ s/\010/\\b/g;
 	$v =~ s/\t/\\t/g;
 	$v =~ s/([^ -ÿ])/sprintf( ord($1) < 0xffff ? "\\u%04x" : "\\u{%x}", ord($1))/ge;
-	if ( $always_string || $v ne $rv ) {
-	    $s .= '"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
+	if ( $always_string || $v ne $str ) {
+	    return'"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
 	}
 	if ( $v =~ $p_reserved
 	     || $v =~ $p_quotes
@@ -604,47 +631,46 @@ method encode(%opts) {
 	     || ( $prp && $always_string && $v =~ /^(on|off)$/ )
 	   ) {
 	    if ( $v !~ /\"/ ) {
-		$s .= '"' . $v . '"';
+		return '"' . $v . '"';
 	    }
-	    elsif ( $v !~ /\'/ ) {
-		$s .= "'" . $v . "'";
+	    if ( $v !~ /\'/ ) {
+		return "'" . $v . "'";
 	    }
-	    elsif ( $v !~ /\`/ ) {
-		$s .= "`" . $v . "`";
+	    if ( $v !~ /\`/ ) {
+		return "`" . $v . "`";
 	    }
-	    else {
-		$s .= '"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
-	    }
+	    return '"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
 	}
-	else {
-	    $s .= length($v) ? $v : '""';
-	}
+	return length($v) ? $v : '""';
     };
 
     my $pr_array = sub ( $rv, $level=0 ) {
 	unless ( @$rv ) {
-	    $s .= "[]";
-	    return;
+	    return "[]";
 	}
-	my @v = map { $self->encode( %opts, data => $_, level => $level+1 ) } @$rv;
-	if ( $i + length("@v") < 72 && "@v" !~ $p_newlines ) {
-	    $s .= $pretty ? "[ @v ]" : "[".join(",",@v)."]";
+	my @v = map { $self->encode( %opts,
+				     data   => $_,
+				     level  => $level+1,
+				     schema => {},
+				   ) } @$rv;
+	if ( $i + length("@v") < 72
+	     && join("",@v) !~ /\s|$p_newlines/ ) {
+	    return $pretty ? "[ @v ]" : "[".join(",",@v)."]";
 	}
-	elsif ( $pretty ) {
-	    $s .= "[\n";
+	if ( $pretty ) {
+	    my $s = "[\n";
 	    $s .= s/^/(" " x ($i+$indent))/gemr . "\n" for @v;
 	    $s .= (" " x $i) . "]";
+	    return $s;
 	}
-	else {
-	    $s .= "[".join(",",@v)."]";
-	}
+	return "[".join(",",@v)."]";
     };
 
-    my $pr_hash; $pr_hash = sub ( $rv, $level=0 ) {
+    my $pr_hash; $pr_hash = sub ( $rv, $level=0, $props = {} ) {
 	unless ( keys(%$rv) ) {
-	    $s .= "{}";
-	    return;
+	    return "{}";
 	}
+	my $s = "";
 	if ( $level || !$impoh ) {
 	    $s .= $pretty ? "{\n" : "{";
 	    $i += $indent;
@@ -655,12 +681,26 @@ method encode(%opts) {
 	  ? @{ delete($rv->{" key order "}) }
 	  : sort(keys(%$rv));
 
+	my $ll = 0;
+	for ( @ko ) {
+	    # This may be wrong if \ escapes or combined keys are involved.
+	    $ll = length($_) if length($_) > $ll;
+	}
+
 	my $s0 = $s;
       REDO:			# ugly, but effective
 	$s = $s0;
 	for ( @ko ) {
 	    my $k = $_;
 	    my $key = $_;
+	    #warn("K:$k -> ", $props->{$k}//"<undef>", "\n");
+	    #warn("K:$k -> ", $props->{$k}->{description}//"<undef>", "\n");
+	    #use DDP; warn(np($props, as => "F:$k"),"\n") unless defined $props->{$k}->{description};
+	    my $comment;
+	    if ( $props->{$k} ) {
+		$comment = $comments->($props->{$k});
+		$s .= $comment if $comment;
+	    }
 	    my $v = $rv->{$k};
 	    while ( $ckeys && ref($v) eq 'HASH' && keys(%$v) == 1 ) {
 		my $k = (keys(%$v))[0];
@@ -668,7 +708,10 @@ method encode(%opts) {
 		$v = $v->{$k};
 	    }
 	    $s .= (" " x $i) if $pretty;
-	    $s .= $self->encode( %opts, data => $key, level => $level+1 );
+	    my $t = $pr_string->($key);
+	    my $l = length($t);
+	    $s .= $t;
+	    my $in = $comment ? "" : " " x max( 0, $ll-length($t) );
 	    if ( ref($v) eq 'HASH' ) {
 		if ( $pretty ) {
 		    $s .= $prpmode ? " " : " : ";
@@ -676,15 +719,15 @@ method encode(%opts) {
 		elsif ( !$prpmode ) {
 		    $s .=  ":";
 		}
-		$pr_hash->( $v, $level+1 );
+		$s .= $pr_hash->( $v, $level+1, $props->{$k}->{properties} );
 	    }
 	    elsif ( ref($v) eq 'ARRAY' ) {
-		$s .= $pretty ? " : " : ":";
-		$pr_array->( $v, $level+1 );
+		$s .= $pretty ? "$in : " : ":";
+		$s .= $pr_array->( $v, $level+1 );
 	    }
 	    else {
-		$s .= $pretty ? " : " : ":";
-		$pr_string->( $v, $level+1 );
+		$s .= $pretty ? "$in : " : ":";
+		$s .= $pr_string->($v);
 		$s .= "," unless $pretty;
 	    }
 	    $s .= "\n" if $pretty;
@@ -698,18 +741,22 @@ method encode(%opts) {
 	else {
 	    $s =~ s/\n+$//;
 	}
+	return $s;
     };
 
     if ( ref($rv) eq 'HASH' ) {
-	$pr_hash->( $rv, $level );
+	$s .= $pr_hash->( $rv, $level, $props );
     }
     elsif ( ref($rv) eq 'ARRAY' ) {
-	$pr_array->( $rv, $level );
+	$s .= $pr_array->( $rv, $level );
     }
     else {
-	$pr_string->( $rv, $level );
+	$s .= $pr_string->($rv);
     }
-    $s .= "\n" if $pretty && !$level && $s !~ /\n$/;
+    if ( $pretty && !$level ) {
+	$s =~ s/^\n*//s;
+	$s .= "\n" if $s !~ /\n$/;
+    }
     return $s;
 }
 
