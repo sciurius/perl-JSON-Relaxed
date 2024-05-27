@@ -421,6 +421,8 @@ Unquoted C<true> and C<false> will yield JSON::Boolean objects that
 test as boolean (true resp. false) and stringify as C<"true"> resp.
 C<"false">. See L</"Boolean values"> how to change this behaviour.
 
+Likewise unquoted C<on> and C<off> when option C<prp> is specified.
+
 =item *
 
 Other unquoted strings will be treated as quoted strings.
@@ -469,6 +471,9 @@ A non-array true value establishes the default.
 Setting to a false value is the same as
 
     $parser->booleans = [ 0, 1 ]
+
+With option C<prp>, unquoted C<on> is the same as C<true>, and C<off>
+is the same as C<false>.
 
 =head1 ERROR HANDLING
 

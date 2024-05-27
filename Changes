@@ -5,6 +5,7 @@ Revision history for JSON-Relaxed
 	- Further enhancements for pretty printing.
 	- Treat numbers that do not yield themselves as strings (e.g. "1.0").
 	- Handle booleans properly.
+	- With prp, allow on and off as boolean values.
 
 0.093	2024-05-09
 

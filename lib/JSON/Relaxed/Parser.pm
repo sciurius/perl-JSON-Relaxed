@@ -32,7 +32,7 @@ field $combined_keys	   :mutator :param = 1;
 # Extension: a:b -> {a:b} (if outer)
 field $implied_outer_hash  :mutator :param = 1;
 
-# Extension: = as :, and optional before {
+# Extension: = as :, and optional before {, off/on as false/true
 field $prp		    :mutator :param = 0;
 
 # Formatted output.
@@ -44,7 +44,6 @@ field $err_msg		    :accessor;
 field $err_pos		    :accessor;
 
 method decode( $str ) {
-
     $croak_on_error_internal = $croak_on_error;
     $self->_decode($str);
 }
@@ -583,8 +582,12 @@ method encode(%opts) {
 	if ( $always_string || $v ne $rv ) {
 	    $s .= '"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
 	}
-	elsif ( $v =~ $p_reserved || $v =~ $p_quotes || $v =~ /\s/
-	     || ( $always_string && $v =~ /^(true|false)$/ ) ) {
+	if ( $v =~ $p_reserved
+	     || $v =~ $p_quotes
+	     || $v =~ /\s/
+	     || ( $always_string && $v =~ /^(true|false)$/ )
+	     || ( $prp && $always_string && $v =~ /^(on|off)$/ )
+	   ) {
 	    if ( $v !~ /\"/ ) {
 		$s .= '"' . $v . '"';
 	    }
@@ -890,6 +893,9 @@ method as_perl( %options ) {
     # Return boolean specials if appropriate.
     if ( $content =~ /^(?:true|false)$/ ) {
 	return $self->parent->booleans->[ $content eq 'true' ? 1 : 0 ];
+    }
+    if ( $self->parent->prp && $content =~ /^(?:on|off)$/ ) {
+	return $self->parent->booleans->[ $content eq 'on' ? 1 : 0 ];
     }
 
     # null -> undef
