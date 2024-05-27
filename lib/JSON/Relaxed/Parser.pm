@@ -38,6 +38,9 @@ field $prp		    :mutator :param = 0;
 # Formatted output.
 field $pretty		    :mutator :param = 0;
 
+# Retain key order. Warning: adds a key " key order " to each hash!
+field $key_order	    :mutator :param = 0;
+
 # Error indicators.
 field $err_id		    :accessor;
 field $err_msg		    :accessor;
@@ -115,7 +118,7 @@ method pretokenize {
 
     # Any escaped char (strict mode).
     if ( $strict ) {
-	push( @p, qq<\\.> );
+	push( @p, qq<\\\\.> );
     }
 
     # Otherwise, match \u{ ... } also.
@@ -364,6 +367,7 @@ method dump_tokens() {
 method build_hash() {
 
     my $rv = {};
+    my @ko;			# order of keys
 
     while ( @tokens ) {
 	my $this = shift(@tokens);
@@ -374,7 +378,10 @@ method build_hash() {
 
 	# If closing brace, return.
 	my $t = $this->token;
-	return $rv if $t eq '}';
+	if ( $t eq '}' ) {
+	    $rv->{" key order "} = \@ko if $key_order && @ko > 1;
+	    return $rv;
+	}
 
 	# If comma, do nothing.
 	next if $t eq ',';
@@ -388,6 +395,14 @@ method build_hash() {
 	    # Set key using string.
 	    $key = $this->as_perl( always_string => 1 );
 	    $self->set_value( $rv, $key );
+	    if ( $key_order ) {
+		if ( $combined_keys ) {
+		    push( @ko, $key =~ s/\..*//r );
+		}
+		else {
+		    push( @ko, $key );
+		}
+	    }
 
 	    my $next = $tokens[0];
 	    # If anything follows the string.
@@ -634,7 +649,16 @@ method encode(%opts) {
 	    $s .= $pretty ? "{\n" : "{";
 	    $i += $indent;
 	}
-	for ( sort keys %$rv ) {
+
+	# If we have a key order, use this and delete.
+	my @ko = $rv->{" key order "}
+	  ? @{ delete($rv->{" key order "}) }
+	  : sort(keys(%$rv));
+
+	my $s0 = $s;
+      REDO:			# ugly, but effective
+	$s = $s0;
+	for ( @ko ) {
 	    my $k = $_;
 	    my $key = $_;
 	    my $v = $rv->{$k};
