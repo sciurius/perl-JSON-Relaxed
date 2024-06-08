@@ -6,7 +6,7 @@ use utf8;
 
 package JSON::Relaxed::Parser;
 
-our $VERSION = "0.094";
+our $VERSION = "0.095";
 
 class JSON::Relaxed::Parser;
 
@@ -588,19 +588,11 @@ method encode(%opts) {
 	$ckeys = $prpmode = $impoh = 0;
     }
 
+    $schema = resolve( $schema, $schema ) if $schema;
+
     my $s = "";
     my $i = 0;
     my $props = $schema->{properties};
-    for my $a ( @{ $props->{allOf} // [] } ) {
-	for my $k ( keys(%$a) ) {
-	    if ( $k eq '$ref' ) {
-	    }
-	    else {
-		$props->{$k} = $a->{$k};
-	    }
-	}
-	use DDP; p($props);
-    }
     #warn("L$level - ", join(" ", sort keys(%$props)),"\n");
 
     # Add comments from schema, if any.
@@ -756,15 +748,6 @@ method encode(%opts) {
 		elsif ( !$prpmode ) {
 		    $s .=  ":";
 		}
-		for my $a ( @{ $props->{$k}->{allOf} // [] } ) {
-		    for my $kx ( keys(%$a) ) {
-			if ( $kx eq '$ref' ) {
-			}
-			else {
-			    $props->{$k}->{$kx} = $a->{$kx};
-			}
-		    }
-		}
 
 		$s .= $pr_hash->( $v, $level+1, $props->{$k}->{properties} );
 	    }
@@ -815,6 +798,69 @@ method encode(%opts) {
 	$s .= "\n" if $s !~ /\n$/;
     }
     return $s;
+}
+
+################ Subroutines ################
+
+# resolve processes $ref, allOf etc nodes.
+
+sub resolve( $d, $schema ) {
+
+    if ( is_hash($d) ) {
+	while ( my ($k,$v) = each %$d ) {
+	    if ( $k eq 'allOf' ) {
+		delete $d->{$k}; # yes, safe to do
+		$d = merge( resolve( $_, $schema ), $d ) for @$v;
+	    }
+	    elsif ( $k eq 'oneOf' || $k eq 'anyOf' ) {
+		delete $d->{$k}; # yes, safe to do
+		$d = merge( resolve( $v->[0], $schema ), $d );
+	    }
+	    elsif ( $k eq '$ref' ) {
+		delete $d->{$k}; # yes, safe to do
+		if ( $v =~ m;^#/definitions/(.*); ) {
+		    $d = merge( resolve( $schema->{definitions}->{$1}, $schema ), $d );
+		}
+		else {
+		    die("Invalid \$ref: $v\n");
+		}
+	    }
+	    else {
+		$d->{$k} = resolve( $v, $schema );
+	    }
+	}
+    }
+    elsif ( is_array($d) ) {
+	$d = [ map { resolve( $_, $schema ) } @$d ];
+    }
+    else {
+    }
+
+    return $d;
+}
+
+sub is_hash($o)  { UNIVERSAL::isa( $o, 'HASH'  ) }
+sub is_array($o) { UNIVERSAL::isa( $o, 'ARRAY' ) }
+
+sub merge ( $left, $right ) {
+
+    return $left unless $right;
+
+    my %merged = %$left;
+
+    for my $key ( keys %$right ) {
+
+        my ($hr, $hl) = map { is_hash($_->{$key}) } $right, $left;
+
+        if ( $hr and $hl ) {
+            $merged{$key} = merge( $left->{$key}, $right->{$key} );
+        }
+        else {
+            $merged{$key} = $right->{$key};
+        }
+    }
+
+    return \%merged;
 }
 
 ################ Tokens ################
