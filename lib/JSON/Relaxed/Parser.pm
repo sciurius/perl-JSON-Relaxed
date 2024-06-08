@@ -16,29 +16,42 @@ field @pretoks;			# string in pre-tokens
 field @tokens;			# string as tokens
 
 # Instance properties.
-field $extra_tokens_ok	   :mutator :param = undef;
+
+# Enforce strictness to official standard.
+# Strict true -> RJSON conformant.
+# Strict false (default) -> RRJSON. Everything goes :).
+field $strict		   :mutator :param = 0;
+
+# Allow extra stuff after the JSON structure.
+# Strict mode only.
+field $extra_tokens_ok	   :mutator :param = 0;
+
+# Define the values to be used for true and false.
 field $booleans		   :mutator :param = 1;
 
 # Signal error with exceptions.
 field $croak_on_error	   :mutator :param = 1;
 field $croak_on_error_internal;
 
-# Enforce strictness to official standard.
-field $strict		   :mutator :param = 0;
-
+# Some non-strict extensions can be controlled individually.
+# This may disappear in some futer version, so do not use.
 # Extension: a.b:c -> a:{b:c}
+## Non-strict only.
 field $combined_keys	   :mutator :param = 1;
 
 # Extension: a:b -> {a:b} (if outer)
+## Non-strict only.
 field $implied_outer_hash  :mutator :param = 1;
 
 # Extension: = as :, and optional before {, off/on as false/true
-field $prp		    :mutator :param = 0;
+## Non-strict only.
+field $prp		    :mutator :param = 1;
 
 # Formatted output.
 field $pretty		    :mutator :param = 0;
 
 # Retain key order. Warning: adds a key " key order " to each hash!
+## Non-strict only.
 field $key_order	    :mutator :param = 0;
 
 # Error indicators.
@@ -272,18 +285,18 @@ method addtok( $tok, $typ, $off, $quote=undef ) {
 
     push( @tokens,
 	  $typ eq 'U' || $typ eq 'N'
-	  ? JSON::Relaxed::String::Unquoted->new( token  => $tok,
+	  ? JSON::Relaxed::String::Unquoted->new( token   => $tok,
 						  content => $tok,
-						  type   => $typ,
-						  parent => $self,
-						  offset => $off )
+						  type    => $typ,
+						  parent  => $self,
+						  offset  => $off )
 	  : $typ eq 'Q'
-	    ? JSON::Relaxed::String::Quoted->new( token  => $tok,
-						  type   => $typ,
+	    ? JSON::Relaxed::String::Quoted->new( token   => $tok,
+						  type    => $typ,
 						  content => $tok,
-						  quote  => $quote,
-						  parent => $self,
-						  offset => $off )
+						  quote   => $quote,
+						  parent  => $self,
+						  offset  => $off )
 	    : JSON::Relaxed::Token->new( token  => $tok,
 					 parent => $self,
 					 type   => $typ,
@@ -295,7 +308,7 @@ method structure( %opts ) {
 
     @tokens = @{$opts{tokens}} if $opts{tokens}; # for debugging
 
-    if ( ($implied_outer_hash || $prp) && !$strict ) {
+    if ( $implied_outer_hash && !$strict ) {
 	# Note that = can only occur with $prp.
 	if ( @tokens > 2 && $tokens[0]->is_string
 	     && $tokens[1]->token =~ /[:={]/ ) {
@@ -379,7 +392,8 @@ method build_hash() {
 	# If closing brace, return.
 	my $t = $this->token;
 	if ( $t eq '}' ) {
-	    $rv->{" key order "} = \@ko if $key_order && @ko > 1;
+	    $rv->{" key order "} = \@ko
+	      if $key_order && !$strict && @ko > 1;
 	    return $rv;
 	}
 
@@ -396,7 +410,7 @@ method build_hash() {
 	    $key = $this->as_perl( always_string => 1 );
 	    $self->set_value( $rv, $key );
 	    if ( $key_order ) {
-		if ( $combined_keys ) {
+		if ( $combined_keys && !$strict ) {
 		    push( @ko, $key =~ s/\..*//r );
 		}
 		else {
@@ -480,7 +494,7 @@ method get_value() {
 
 method set_value ( $rv, $key, $value = undef ) {
     return $rv->{$key} = $value
-      unless ($prp || $combined_keys) && !$strict && $key =~ /\./s;
+      unless $combined_keys && !$strict && $key =~ /\./s;
 
     my @keys = split(/\./, $key, -1 );
     my $c = \$rv;
@@ -577,15 +591,23 @@ method encode(%opts) {
     my $s = "";
     my $i = 0;
     my $props = $schema->{properties};
-    #warn("L$level - ", join(" ", sort keys(%$props)),"\n");
-    if ( !$level && $schema->{title} ) {
-	$s .= "// " . $schema->{title} . "\n";
+    for my $a ( @{ $props->{allOf} // [] } ) {
+	for my $k ( keys(%$a) ) {
+	    if ( $k eq '$ref' ) {
+	    }
+	    else {
+		$props->{$k} = $a->{$k};
+	    }
+	}
+	use DDP; p($props);
     }
+    #warn("L$level - ", join(" ", sort keys(%$props)),"\n");
 
+    # Add comments from schema, if any.
     my $comments = sub( $p ) {
 	my $s = "";
-	my $did = $level;
-	for my $topic ( qw( title description infoText ) ) {
+	my $did = 0;#$level;
+	for my $topic ( qw( title description ) ) {
 	    next unless $p->{$topic};
 	    $s .= "\n" unless $did++;
 	    $s .= (" " x $i) . "// $_\n"
@@ -594,8 +616,12 @@ method encode(%opts) {
 	return $s;
     };
 
+    if ( !$level ) {
+	$s .= $comments->($schema);
+    }
+
+    # Format a string value.
     my $pr_string = sub ( $str ) {
-	my $always_string;
 
 	# Reserved strings.
 	if ( !defined($str) ) {
@@ -603,16 +629,12 @@ method encode(%opts) {
 	}
 
 	if ( UNIVERSAL::isa( $str, 'JSON::Boolean' ) ) {
-	    my $s = "";
-	    $s .= '"' if $always_string;
-	    $s .= $str;
-	    $s .= '"' if $always_string;
-	    return $s;
+	    return "".$str;	# force string result
 	}
 
 	my $v = $str;
-	$always_string ||= $v =~ /^$p_number$/ && 0+$v ne $v;
 
+	# Escapes.
 	$v =~ s/\\/\\\\/g;
 	$v =~ s/\n/\\n/g;
 	$v =~ s/\r/\\r/g;
@@ -621,14 +643,16 @@ method encode(%opts) {
 	$v =~ s/\010/\\b/g;
 	$v =~ s/\t/\\t/g;
 	$v =~ s/([^ -ÿ])/sprintf( ord($1) < 0xffff ? "\\u%04x" : "\\u{%x}", ord($1))/ge;
-	if ( $always_string || $v ne $str ) {
-	    return'"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
-	}
-	if ( $v =~ $p_reserved
+
+	# Force quotes unless the string can be represented as unquoted.
+	if ( # contains escapes
+	     $v ne $str
+	     # not value-formed numeric
+	     || ( $v =~ /^$p_number$/ && 0+$v ne $v )
+	     # contains reserved, quotes or spaces
+	     || $v =~ $p_reserved
 	     || $v =~ $p_quotes
 	     || $v =~ /\s/
-	     || ( $always_string && $v =~ /^(true|false)$/ )
-	     || ( $prp && $always_string && $v =~ /^(on|off)$/ )
 	   ) {
 	    if ( $v !~ /\"/ ) {
 		return '"' . $v . '"';
@@ -641,36 +665,45 @@ method encode(%opts) {
 	    }
 	    return '"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
 	}
+
+	# Just a string, potentially empty.
 	return length($v) ? $v : '""';
     };
 
-    my $pr_array = sub ( $rv, $level=0 ) {
-	unless ( @$rv ) {
-	    return "[]";
-	}
+    # Format an array value.
+    my $pr_array = sub ( $rv, $level=0, $props = {} ) {
+	return "[]" unless @$rv;
+
+	# Gather list of formatted values.
 	my @v = map { $self->encode( %opts,
 				     data   => $_,
 				     level  => $level+1,
-				     schema => {},
+				     schema => $props,
 				   ) } @$rv;
+
+	return "[".join(",",@v)."]" unless $pretty;
+
+	# If sufficiently short, put it on one line.
 	if ( $i + length("@v") < 72
 	     && join("",@v) !~ /\s|$p_newlines/ ) {
-	    return $pretty ? "[ @v ]" : "[".join(",",@v)."]";
+	    return "[ @v ]";
 	}
-	if ( $pretty ) {
-	    my $s = "[\n";
-	    $s .= s/^/(" " x ($i+$indent))/gemr . "\n" for @v;
-	    $s .= (" " x $i) . "]";
-	    return $s;
-	}
-	return "[".join(",",@v)."]";
+
+	# Put the values on separate lines.
+	my $s = "[\n";
+	$s .= s/^/(" " x ($i+$indent))/gemr . "\n" for @v;
+	$s .= (" " x $i) . "]";
+
+	return $s;
     };
 
+    # Format a hask value.
     my $pr_hash; $pr_hash = sub ( $rv, $level=0, $props = {} ) {
-	unless ( keys(%$rv) ) {
-	    return "{}";
-	}
+	return "{}" unless keys(%$rv);
+
 	my $s = "";
+
+	# Opening brace.
 	if ( $level || !$impoh ) {
 	    $s .= $pretty ? "{\n" : "{";
 	    $i += $indent;
@@ -687,44 +720,60 @@ method encode(%opts) {
 	    $ll = length($_) if length($_) > $ll;
 	}
 
-	my $s0 = $s;
-      REDO:			# ugly, but effective
-	$s = $s0;
 	for ( @ko ) {
 	    my $k = $_;
-	    my $key = $_;
-	    #warn("K:$k -> ", $props->{$k}//"<undef>", "\n");
-	    #warn("K:$k -> ", $props->{$k}->{description}//"<undef>", "\n");
-	    #use DDP; warn(np($props, as => "F:$k"),"\n") unless defined $props->{$k}->{description};
+
+	    # Gather comments, if available.
 	    my $comment;
 	    if ( $props->{$k} ) {
 		$comment = $comments->($props->{$k});
 		$s .= $comment if $comment;
 	    }
+
 	    my $v = $rv->{$k};
+	    my $key = $k;	# final key
+	    # Combine keys if allowed and possible.
 	    while ( $ckeys && ref($v) eq 'HASH' && keys(%$v) == 1 ) {
 		my $k = (keys(%$v))[0];
-		$key .= ".$k";
-		$v = $v->{$k};
+		$key .= ".$k";	# append to final key
+		$v = $v->{$k};	# step to next
 	    }
+
 	    $s .= (" " x $i) if $pretty;
+
+	    # Format the key, try to align on length. NEEDS WORK
 	    my $t = $pr_string->($key);
 	    my $l = length($t);
 	    $s .= $t;
 	    my $in = $comment ? "" : " " x max( 0, $ll-length($t) );
+
+	    # Format the value.
 	    if ( ref($v) eq 'HASH' ) {
+		# Make up and recurse.
 		if ( $pretty ) {
 		    $s .= $prpmode ? " " : " : ";
 		}
 		elsif ( !$prpmode ) {
 		    $s .=  ":";
 		}
+		for my $a ( @{ $props->{$k}->{allOf} // [] } ) {
+		    for my $kx ( keys(%$a) ) {
+			if ( $kx eq '$ref' ) {
+			}
+			else {
+			    $props->{$k}->{$kx} = $a->{$kx};
+			}
+		    }
+		}
+
 		$s .= $pr_hash->( $v, $level+1, $props->{$k}->{properties} );
 	    }
+
 	    elsif ( ref($v) eq 'ARRAY' ) {
 		$s .= $pretty ? "$in : " : ":";
-		$s .= $pr_array->( $v, $level+1 );
+		$s .= $pr_array->( $v, $level+1, $props->{$k}->{items} );
 	    }
+
 	    else {
 		$s .= $pretty ? "$in : " : ":";
 		$s .= $pr_string->($v);
@@ -732,7 +781,11 @@ method encode(%opts) {
 	    }
 	    $s .= "\n" if $pretty;
 	}
+
+	# Strip final comma.
 	$s =~ s/,$// unless $pretty;
+
+	# Closing brace,.
 	if ( $level || !$impoh ) {
 	    $i -= $indent;
 	    $s .= (" " x $i) if $pretty;
@@ -741,9 +794,11 @@ method encode(%opts) {
 	else {
 	    $s =~ s/\n+$//;
 	}
+
 	return $s;
     };
 
+    # From here it is straight forward.
     if ( ref($rv) eq 'HASH' ) {
 	$s .= $pr_hash->( $rv, $level, $props );
     }
@@ -753,6 +808,8 @@ method encode(%opts) {
     else {
 	$s .= $pr_string->($rv);
     }
+
+    # Final make-up.
     if ( $pretty && !$level ) {
 	$s =~ s/^\n*//s;
 	$s .= "\n" if $s !~ /\n$/;
@@ -987,29 +1044,24 @@ method _data_printer( $ddp ) {
 
 # This class distinguises booleans true and false from numeric 1 and 0.
 
-class JSON::Boolean;
+package JSON::Boolean {
 
-field $value		:param = undef;
-field $from		:param;
+    sub as_perl( $self, %options ) { $self }
 
-ADJUST {
-    $value = $from eq "true" ? 1 : 0;
-};
+    sub _data_printer( $self, $ddp ) { "Bool($self)" }
 
-method as_perl( %options ) { $self }
+    use overload '""'     => sub { ${$_[0]} ? "true" : "false" },
+		 "bool"   => sub { !!${$_[0]} },
+		 fallback => 1;
 
-method _data_printer( $ddp ) { "Bool($from)" }
+    # For JSON::PP export.
+    sub TO_JSON { ${$_[0]} ? $JSON::PP::true : $JSON::PP::false }
 
-use overload '""'     => method { $from },
-	     "bool"   => method { $value },
-	     fallback => 1;
+    # Boolean values.
+    our $true  = do { bless \(my $dummy = 1) => __PACKAGE__ };
+    our $false = do { bless \(my $dummy = 0) => __PACKAGE__ };
 
-# For JSON::PP export.
-method TO_JSON { $value ? $JSON::PP::true : $JSON::PP::false }
-
-# Boolean values.
-our $true  = JSON::Boolean->new( from => 'true'  );
-our $false = JSON::Boolean->new( from => 'false' );
+}
 
 ################
 

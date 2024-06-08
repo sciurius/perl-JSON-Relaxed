@@ -460,6 +460,8 @@ otherwise. Non-latin characters will be output as C<\u> escapes.
 When some of the quotes C<" ' `> are embedded the others will be tried
 for the string, e.g. C<"a\"b"> will yield C<'a"b'>.
 
+All quotes are equal, there is no difference in interpretation.
+
 =item *
 
 Boolean objects will be output as unquoted C<true> and C<false>.
