@@ -757,10 +757,35 @@ method encode(%opts) {
 		$s .= $pr_array->( $v, $level+1, $props->{$k}->{items} );
 	    }
 
+	    elsif ( $pretty ) {
+		my $t = $pr_string->($v);
+		$s .= "$in : ";
+
+		# Break quoted strings that contain pseudo-newlines.
+		if ( $t =~ /^["'`].*\\n/ ) {
+		    # Remove the quotes/
+		    my $quote = substr( $t, 0, 1, '');
+		    chop($t);
+
+		    # Determine current indent.
+		    $s =~ /^(.*)\Z/m;
+		    my $sep = " \\\n" . (" " x length($1));
+
+		    # Get string parts.
+		    my @a = split( /\\n/, $t );
+		    while ( @a ) {
+			$s .= $quote.shift(@a)."\\n".$quote;
+			$s .= $sep if @a;
+		    }
+		}
+
+		# Just a string.
+		else {
+		    $s .= $t;
+		}
+	    }
 	    else {
-		$s .= $pretty ? "$in : " : ":";
-		$s .= $pr_string->($v);
-		$s .= "," unless $pretty;
+		$s .= ":" . $pr_string->($v) . ",";
 	    }
 	    $s .= "\n" if $pretty;
 	}
@@ -1089,6 +1114,8 @@ method _data_printer( $ddp ) {
 ################ Booleans ################
 
 # This class distinguises booleans true and false from numeric 1 and 0.
+
+use JSON::PP ();
 
 package JSON::Boolean {
 
