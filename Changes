@@ -1,5 +1,9 @@
 Revision history for JSON-Relaxed
 
+0.000
+
+	- Use TO_JSON or FREEZE method to serialize objects.
+
 0.096	2024-06-17
 
 	- More pretty strings.

@@ -740,8 +740,12 @@ method encode(%opts) {
 	    $s .= $t;
 	    my $in = $comment ? "" : " " x max( 0, $ll-length($t) );
 
+	    # Handle object serialisation.
+	    my $r = UNIVERSAL::can( $v, "TO_JSON" ) // UNIVERSAL::can( $v, "FREEZE" );
+	    $r = $r ? $v->$r : $v;
+
 	    # Format the value.
-	    if ( ref($v) eq 'HASH' ) {
+	    if ( ref($r) eq 'HASH' ) {
 		# Make up and recurse.
 		if ( $pretty ) {
 		    $s .= $prpmode ? " " : " : ";
@@ -750,16 +754,16 @@ method encode(%opts) {
 		    $s .=  ":";
 		}
 
-		$s .= $pr_hash->( $v, $level+1, $props->{$k}->{properties} );
+		$s .= $pr_hash->( $r, $level+1, $props->{$k}->{properties} );
 	    }
 
-	    elsif ( ref($v) eq 'ARRAY' ) {
+	    elsif ( ref($r) eq 'ARRAY' ) {
 		$s .= $pretty ? "$in : " : ":";
-		$s .= $pr_array->( $v, $level+1, $props->{$k}->{items} );
+		$s .= $pr_array->( $r, $level+1, $props->{$k}->{items} );
 	    }
 
 	    elsif ( $pretty ) {
-		my $t = $pr_string->($v);
+		my $t = $pr_string->($r);
 		$s .= "$in : ";
 
 		# Break quoted strings that contain pseudo-newlines.
@@ -788,7 +792,7 @@ method encode(%opts) {
 		}
 	    }
 	    else {
-		$s .= ":" . $pr_string->($v) . ",";
+		$s .= ":" . $pr_string->($r) . ",";
 	    }
 	    $s .= "\n" if $pretty;
 	}
@@ -809,15 +813,19 @@ method encode(%opts) {
 	return $s;
     };
 
+    # Handle object serialisation.
+    my $r = UNIVERSAL::can( $rv, "TO_JSON" ) // UNIVERSAL::can( $rv, "FREEZE" );
+    $r = $r ? $rv->$r : $rv;
+
     # From here it is straight forward.
-    if ( ref($rv) eq 'HASH' ) {
-	$s .= $pr_hash->( $rv, $level, $props );
+    if ( ref($r) eq 'HASH' ) {
+	$s .= $pr_hash->( $r, $level, $props );
     }
-    elsif ( ref($rv) eq 'ARRAY' ) {
-	$s .= $pr_array->( $rv, $level );
+    elsif ( ref($r) eq 'ARRAY' ) {
+	$s .= $pr_array->( $r, $level );
     }
     else {
-	$s .= $pr_string->($rv);
+	$s .= $pr_string->($r);
     }
 
     # Final make-up.
