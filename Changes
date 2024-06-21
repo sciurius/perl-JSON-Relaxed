@@ -1,8 +1,9 @@
 Revision history for JSON-Relaxed
 
-0.000
+0.096	2024-06-17
 
 	- More pretty strings.
+	- (encode) Allow using real glyphs instead of \u escapes.
 
 0.095	2024-06-08
 
