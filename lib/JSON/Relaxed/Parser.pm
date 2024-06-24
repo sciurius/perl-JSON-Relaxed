@@ -614,7 +614,7 @@ method encode(%opts) {
     }
 
     # Format a string value.
-    my $pr_string = sub ( $str ) {
+    my $pr_string = sub ( $str, $force = 0 ) {
 
 	# Reserved strings.
 	if ( !defined($str) ) {
@@ -646,6 +646,8 @@ method encode(%opts) {
 	     || $v =~ $p_reserved
 	     || $v =~ $p_quotes
 	     || $v =~ /\s/
+	     || $v =~ /^(true|false|null)$/
+	     || !length($v)
 	   ) {
 	    if ( $v !~ /\"/ ) {
 		return '"' . $v . '"';
@@ -659,8 +661,8 @@ method encode(%opts) {
 	    return '"' . ($v =~ s/(["'`])/\\$1/rg) . '"';
 	}
 
-	# Just a string, potentially empty.
-	return length($v) ? $v : '""';
+	# Just a string.
+	return $v;
     };
 
     # Format an array value.
@@ -690,7 +692,7 @@ method encode(%opts) {
 	return $s;
     };
 
-    # Format a hask value.
+    # Format a hash value.
     my $pr_hash; $pr_hash = sub ( $rv, $level=0, $props = {} ) {
 	return "{}" unless keys(%$rv);
 
