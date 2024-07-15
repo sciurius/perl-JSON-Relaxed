@@ -5,6 +5,8 @@ Revision history for JSON-Relaxed
 	- Use TO_JSON or FREEZE method to serialize objects.
 	- Allow conversion of Data::Properties data (requires
 	  ChordPro::Config::Properties).
+	- Add overload for 0+ to booleans to fix problems with
+	  using booleans in numeric comparisons.
 
 0.096	2024-06-17
 
