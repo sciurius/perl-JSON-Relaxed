@@ -7,6 +7,7 @@ Revision history for JSON-Relaxed
 	  ChordPro::Config::Properties).
 	- Add overload for 0+ to booleans to fix problems with
 	  using booleans in numeric comparisons.
+	- Fix issue #5.
 
 0.096	2024-06-17
 
