@@ -621,8 +621,9 @@ method encode(%opts) {
 	    return "null";
 	}
 
-	if ( UNIVERSAL::isa( $str, 'JSON::Boolean' ) ) {
-	    return "".$str;	# force string result
+	if ( UNIVERSAL::isa( $str, 'JSON::Boolean' )
+	     || UNIVERSAL::isa( $str, 'JSON::PP::Boolean' ) ) {
+	    return (qw(false true))[$str];	# force string result
 	}
 
 	my $v = $str;
