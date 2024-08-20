@@ -9,6 +9,8 @@ Revision history for JSON-Relaxed
 	  using booleans in numeric comparisons.
 	- Fix issue #5.
 	- Fix null not being stored in array.
+	- Fix pretty boolean ("true" instead of "1").
+	- Add conversion from/to YAML and TOML.
 
 0.096	2024-06-17
 
