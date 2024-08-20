@@ -1112,7 +1112,7 @@ method as_perl( %options ) {
 
     # null -> undef
     elsif ( $content eq "null" ) {
-	return;
+	return undef;
     }
 
     # Return as string.

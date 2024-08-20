@@ -8,6 +8,7 @@ Revision history for JSON-Relaxed
 	- Add overload for 0+ to booleans to fix problems with
 	  using booleans in numeric comparisons.
 	- Fix issue #5.
+	- Fix null not being stored in array.
 
 0.096	2024-06-17
 
