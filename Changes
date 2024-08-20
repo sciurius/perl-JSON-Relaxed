@@ -2,6 +2,8 @@ Revision history for JSON-Relaxed
 
 0.000
 
+0.097	2024-08-20
+
 	- Use TO_JSON or FREEZE method to serialize objects.
 	- Allow conversion of Data::Properties data (requires
 	  ChordPro::Config::Properties).
