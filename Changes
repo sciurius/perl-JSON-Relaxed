@@ -2,6 +2,8 @@ Revision history for JSON-Relaxed
 
 0.000
 
+0.099
+	- Remove dependency JSON::PP. It is now only required for testing.
 
 0.098	2025-06-26
 
